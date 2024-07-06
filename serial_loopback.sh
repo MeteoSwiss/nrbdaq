@@ -1,1 +1,1 @@
-python3 /nrbdaq/utils/loopback_test.py --port /dev/ttyUSB0 --baudrate 9600 --timeout 1.0
+python3 ./nrbdaq/utils/loopback_test.py --port /dev/ttyUSB0 --baudrate 9600 --timeout 1.0

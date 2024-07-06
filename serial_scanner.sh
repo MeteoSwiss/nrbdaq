@@ -1,1 +1,1 @@
-python3 /nrbdaq/utils/serial_scanner.py
+python3 ./nrbdaq/utils/serial_scanner.py
