@@ -1,0 +1,4 @@
+pyserial
+polars
+schedule
+configparser
