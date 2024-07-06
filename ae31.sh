@@ -1,2 +1,2 @@
 #!/bin/bash
-python nrbdaq/inst/ae31.py
+python nrbdaq/instr/ae31.py

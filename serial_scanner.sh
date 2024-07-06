@@ -1,0 +1,1 @@
+python3 /nrbdaq/utils/serial_scanner.py
