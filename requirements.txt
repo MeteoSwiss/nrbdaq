@@ -2,3 +2,5 @@ pyserial
 polars
 schedule
 configparser
+paramiko
+sockslib

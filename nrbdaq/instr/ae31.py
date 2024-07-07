@@ -1,12 +1,14 @@
-import serial
-import polars as pl
+import configparser
 import logging
-import schedule
+import os
 import time
 from datetime import datetime
 from typing import Optional
-import configparser
-import os
+
+import polars as pl
+import schedule
+import serial
+
 
 class AE31:
     def __init__(self, config_file: str = 'nrbdaq.cfg'):
