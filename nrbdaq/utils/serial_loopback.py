@@ -49,7 +49,7 @@ def main():
     Main function to parse CLI arguments and perform the loopback test.
     """
     parser = argparse.ArgumentParser(description="Serial port loopback test.")
-    parser.add_argument("--port", type=str, required=True, help="Serial port (e.g., /dev/ttyUSB0)")
+    parser.add_argument("--port", type=str, default="COM1", required=False, help="Serial port (e.g., /dev/ttyUSB0)")
     parser.add_argument("--baudrate", type=int, default=9600, help="Baud rate (default: 9600)")
     parser.add_argument("--timeout", type=float, default=1.0, help="Timeout in seconds (default: 1.0)")
 

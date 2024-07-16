@@ -4,7 +4,7 @@ import os
 import time
 from datetime import datetime
 from typing import Optional
-
+from nrbdaq.utils.utils import setup_logger, load_config
 import polars as pl
 import schedule
 import serial
@@ -17,85 +17,111 @@ class AE31:
 
         :param config_file: Path to the configuration file.
         """
-        self.config = self.load_config(config_file)
-        self.port = self.config['serial']['port']
-        self.baudrate = int(self.config['serial']['baudrate'])
-        self.timeout = float(self.config['serial']['timeout'])
-        self.target_folder = self.config['output']['target_folder']
-        
-        self.setup_logger()
-        
-        self.serial_conn = serial.Serial(self.port, self.baudrate, timeout=self.timeout)
-        self.data = pl.DataFrame({"timestamp": [], "data": []})
-        self.current_hour = datetime.now().hour
+        try:
+            # self.logger = logging.getLogger(__name__)
 
-    @staticmethod
-    def load_config(config_file: str) -> configparser.ConfigParser:
-        """
-        Load configuration from a file.
+            self.config = load_config(config_file)
+            
+            self.logger = setup_logger(name=__name__,
+                          file=self.config['logging']['file'], 
+                          level_console=self.config['logging']['level_console'], 
+                          level_file=self.config['logging']['level_file'])
 
-        :param config_file: Path to the configuration file.
-        :return: ConfigParser object with the loaded configuration.
-        """
-        config = configparser.ConfigParser()
-        config.read(config_file)
-        return config
+            # self.simulate = self.config['app']['simulate']
+            self.simulate = False
 
-    def setup_logger(self):
-        """
-        Setup logger for the AE31 class.
-        """
-        log_file = self.config['logging']['log_file']
-        log_level = self.config['logging']['log_level'].upper()
+            self.staging_root = os.path.expanduser(self.config['staging']['root'])
+            os.makedirs(self.staging_root, exist_ok=True)
+            self.data_root = os.path.expanduser(self.config['data']['root'])
+            os.makedirs(self.data_root, exist_ok=True)
+            # self.data = pl.DataFrame({"timestamp": [], "data": []})
+            self.data = pl.DataFrame({"timestamp": [str()], "data": [str()]})
+            
+            self.current_hour = datetime.now().hour
 
-        logging.basicConfig(
-            filename=log_file,
-            level=getattr(logging, log_level, logging.ERROR),
-            format='%(asctime)s:%(levelname)s:%(message)s'
-        )
+            self.port = self.config['AE31']['serial_port']
+            self.baudrate = int(self.config['AE31']['serial_baudrate'])
+            self.timeout = float(self.config['AE31']['serial_timeout'])
+            if self.simulate:
+                self.read_interval = 1
+            else:
+                self.read_interval = self.config['AE31']['read_interval']
+                self.serial_conn = serial.Serial(self.port, self.baudrate, timeout=self.timeout)
+                self.serial_conn.close()
 
-    def collect_readings(self):
+        except serial.SerialException as err:
+            self.logger.error(f"Serial communication error: {err}")
+            pass
+        except Exception as err:
+            self.logger.error(f"General error: {err}")
+            pass
+
+    def collect_readings(self, echo: bool=False):
         """
         Collect readings from the AE31 instrument and store them in hourly parquet files.
         """
         try:
-            if self.serial_conn.in_waiting > 0:
-                raw_data = self.serial_conn.readline().decode('ascii').strip()
-                current_time = datetime.now()
-                timestamp = current_time.isoformat()
+            if self.serial_conn.closed:
+                self.serial_conn.open()
 
-                if raw_data:
-                    # Check for duplicates
-                    if not self.data.filter(pl.col("data") == raw_data).is_empty():
-                        new_row = pl.DataFrame({"timestamp": [timestamp], "data": [raw_data]})
-                        self.data = pl.concat([self.data, new_row])
+            raw_data = str()
+            if self.simulate:
+                raw_data = f"this,is,a,test"
+            elif self.serial_conn.in_waiting > 0:
+                raw_data = self.serial_conn.readline().decode('ascii').strip()     
+                if echo:
+                    print(raw_data)
+            current_time = datetime.now()
+            timestamp = current_time.isoformat()
 
-                # Check if we need to write the data to a new file
-                if current_time.hour != self.current_hour:
-                    self.write_to_parquet(current_time)
-                    self.data = pl.DataFrame({"timestamp": [], "data": []})
-                    self.current_hour = current_time.hour
+            if raw_data:
+                # Check for duplicates
+                # if not self.data.filter(pl.col("data") == raw_data).is_empty():
+                if self.data.filter(pl.col("data") == raw_data).is_empty():
+                    new_row = pl.DataFrame({"timestamp": [timestamp], "data": [raw_data]})
+                    self.data = pl.concat([self.data, new_row], how='diagonal')
 
-        except serial.SerialException as e:
-            logging.error(f"Serial communication error: {e}")
-        except Exception as e:
-            logging.error(f"General error: {e}")
+            # Check if we need to write the data to a new file
+            if self.config['app']['simulate'] or current_time.hour != self.current_hour:
+                self.stage_and_store_data(current_time)
+                self.data = pl.DataFrame({"timestamp": [str()], "data": [str()]})
+                self.current_hour = current_time.hour
 
-    def write_to_parquet(self, current_time: datetime):
+        except serial.SerialException as err:
+            self.logger.error(f"Serial communication error: {err}")
+            pass
+        except Exception as err:
+            self.logger.error(f"General error: {err}")
+            pass
+
+    def stage_and_store_data(self, current_time: datetime):
         """
-        Write the collected data to a parquet file.
+        Write the collected data to a parquet file. 
 
         :param current_time: The current time to generate the file name.
         """
-        file_name = f"AE31_{current_time.strftime('%Y%m%dT%H')}.parquet"
-        file_path = os.path.join(self.target_folder, file_name)
-        self.data.write_parquet(file_path)
+        if self.simulate:
+            file_name = f"AE31_{current_time.strftime('%Y%m%dT%H%M')}.parquet"
+        else:
+            file_name = f"AE31_{current_time.strftime('%Y%m%dT%H')}.parquet"
+        
+        # write data to staging area
+        self.data.write_parquet(os.path.join(self.staging_root, file_name))
+        
+        # write data to data area
+        self.data.write_parquet(os.path.join(self.data_root, file_name))
+        
+        self.logger.info(f"{file_name} staged and stored.")
+
+    def plot_data(self, filepath: str, save: bool=True):
+        df = pl.read_parquet(filepath)
+
 
     def start(self):
         """
         Start the data collection process.
         """
-        schedule.every(5).minutes.do(self.collect_readings)
+        schedule.every(int(self.read_interval)).minutes.do(self.collect_readings)
         while True:
             schedule.run_pending()
             time.sleep(1)
