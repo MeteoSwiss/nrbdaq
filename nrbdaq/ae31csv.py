@@ -9,7 +9,7 @@ ser = serial.Serial('/dev/ttyUSB0', 9600, 8, 'N', 1, timeout=360)
 
 # open file for the day and get ready to write to it
 dte_today = datetime.now().strftime('%Y%m%d')
-file_data = open(f"AE31_{dte_today}.csv", 'w')
+file_data = open(f"nrbdaq/data/ae31/AE31_{dte_today}.csv", 'w')
 print(f"# Reading data and writing to AE31_{dte_today}.csv")
 data_received = " "
 
@@ -25,6 +25,6 @@ while True:
         else:
             file_data.close()
             dte_today = datetime.now().strftime('%Y%m%d')
-            file_data = open(f"AE31_{dte_today}.csv", 'w')
+            file_data = open(f"nrbdaq/data/ae31/AE31_{dte_today}.csv", 'w')
             print(f"# Reading data and writing to AE31_{dte_today}.csv")
             file_data.write(f"{dtm}, {data_received}")
