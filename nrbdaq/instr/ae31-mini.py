@@ -39,7 +39,7 @@ def collect_data(port: str, baudrate: int, timeout: float, target: str):
     :param target_folder: The folder to save the data files.
     """
     current_time = datetime.now()
-    file_name = current_time.strftime("data_%Y%m%d.txt")
+    file_name = current_time.strftime("AE31_%Y%m%d.txt")
     file_path = os.path.join(target, file_name)
 
     try:
@@ -48,7 +48,7 @@ def collect_data(port: str, baudrate: int, timeout: float, target: str):
                 # Check if a new day has started
                 new_time = datetime.now()
                 if new_time.date() != current_time.date():
-                    file_name = new_time.strftime("data_%Y%m%d.txt")
+                    file_name = new_time.strftime("AE31_%Y%m%d.txt")
                     file_path = os.path.join(target, file_name)
                     current_time = new_time
 
