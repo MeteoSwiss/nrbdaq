@@ -9,7 +9,6 @@ import polars as pl
 import schedule
 import serial
 
-
 class AE31:
     def __init__(self, config_file: str = 'nrbdaq.cfg'):
         """
@@ -56,6 +55,106 @@ class AE31:
             self.logger.error(f"General error: {err}")
             pass
 
+    
+    def collect_readings_daily_basic(self):
+        """
+        Basic function to open serial port, receive data every 5', append to CSV file, 
+        whereby a new CSV file called 'AE31_yyyymmdd.dat' is generated every day.
+        """
+        # open serial port
+        ser = serial.Serial('/dev/ttyUSB0', 9600, 8, 'N', 1, timeout=360)
+        
+        # open file for the day and get ready to write to it
+        dte_today = datetime.now().strftime('%Y%m%d')
+        file_data = open(f"AE31_{dte_today}.csv", 'w')
+        print(f"# Reading data and writing to AE31_{dte_today}.csv")
+        data_received = " "
+
+        # Listen for the input, exit if nothing received in timeout period
+        while True:
+            while data_received:
+                data_received = ser.readline().decode()
+                print(f"{data_received[:80]} ..."),
+                
+                dtm = datetime.now().isoformat()
+                if dte_today==datetime.now().strftime('%Y%m%d'):
+                    file_data.write(f"{dtm}, {data_received}")
+                else:
+                    file_data.close()
+                    dte_today = datetime.now().strftime('%Y%m%d')
+                    file_data = open(f"AE31_{dte_today}.csv", 'w')
+                    print(f"# Reading data and writing to AE31_{dte_today}.csv")
+                    file_data.write(f"{dtm}, {data_received}")
+
+    
+    def collect_readings_hourly_basic(self):
+        """
+        Basic function to open serial port, receive data every 5', append to CSV file, 
+        whereby a new CSV file called 'AE31_yyyymmddTHH.dat' is generated every hour.
+        """
+        # open serial port
+        ser = serial.Serial('/dev/ttyUSB0', 9600, 8, 'N', 1, timeout=360)
+        
+        # open file for the day and get ready to write to it
+        dtm_this_hour = datetime.now().strftime('%Y%m%dT%H')
+        file_data = open(f"/home/gaw/Documents/data/ae31/AE31_{dtm_this_hour}.csv", 'w')
+        print(f"# Reading data and writing to AE31_{dtm_this_hour}.csv")
+        data_received = " "
+
+        # Listen for the input, exit if nothing received in timeout period
+        while True:
+            while data_received:
+                data_received = ser.readline().decode()
+                print(f"{data_received[:80]} ..."),
+                
+                dtm = datetime.now().isoformat()
+                if dtm_this_hour==datetime.now().strftime('%Y%m%dT%H'):
+                    file_data.write(f"{dtm}, {data_received}")
+                else:
+                    file_data.close()
+                    dtm_this_hour = datetime.now().strftime('%Y%m%dT%H')
+                    file_data = open(f"/home/gaw/Documents/data/AE31_{dtm_this_hour}.csv", 'w')
+                    print(f"# Reading data and writing to AE31_{dtm_this_hour}.csv")
+                    file_data.write(f"{dtm}, {data_received}")
+
+
+    def collect_readings_hourly(self):
+        """
+        Basic function to open serial port, receive data every 5', append to CSV file, 
+        whereby a new CSV file called 'AE31_yyyymmddTHH.dat' is generated every hour.
+        """
+        # open serial port
+        ser = serial.Serial('/dev/ttyUSB0', 9600, 8, 'N', 1, timeout=360)
+        
+        # open file for the hour and get ready to write to it
+        root = os.path.expanduser("~/Documents/data")
+        dtm = datetime.now()
+        dtm_this_hour = dtm.strftime('%Y%m%dT%H')
+        yyyy = dtm.strftime("%Y")
+        mm = dtm.strftime("%m")
+        dd = dtm.strftime("%d")
+        
+        file_data = open(f"/home/gaw/Documents/data/AE31_{dtm_this_hour}.csv", 'w')
+        print(f"# Reading data and writing to AE31_{dtm_this_hour}.csv")
+        data_received = " "
+
+        # Listen for the input, exit if nothing received in timeout period
+        while True:
+            while data_received:
+                data_received = ser.readline().decode()
+                print(f"{data_received[:80]} ..."),
+                
+                dtm = datetime.now().isoformat()
+                if dtm_this_hour==datetime.now().strftime('%Y%m%dT%H'):
+                    file_data.write(f"{dtm}, {data_received}")
+                else:
+                    file_data.close()
+                    dtm_this_hour = datetime.now().strftime('%Y%m%dT%H')
+                    file_data = open(f"/home/gaw/Documents/data/AE31_{dtm_this_hour}.csv", 'w')
+                    print(f"# Reading data and writing to AE31_{dtm_this_hour}.csv")
+                    file_data.write(f"{dtm}, {data_received}")
+
+    
     def collect_readings(self, echo: bool=False):
         """
         Collect readings from the AE31 instrument and store them in hourly parquet files.

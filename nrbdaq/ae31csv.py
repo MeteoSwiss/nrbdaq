@@ -1,34 +1,30 @@
+"""
+Basic function to open serial port, receive data every 5', append to CSV file, 
+whereby a new CSV file called 'AE31_yyyymmdd.dat' is generated every day.
+"""
 import serial
-import datetime
+from datetime import datetime
+# open serial port
+ser = serial.Serial('/dev/ttyUSB0', 9600, 8, 'N', 1, timeout=360)
 
-# Read & print/write data
-ser = serial.Serial('/dev/ttyUSB0',9600, 8, 'N', 1, timeout = 360)
-# Open file and write to it
-dte_today = datetime.datetime.now().strftime('%Y%m%d')
-
+# open file for the day and get ready to write to it
+dte_today = datetime.now().strftime('%Y%m%d')
 file_data = open(f"AE31_{dte_today}.csv", 'w')
-print(f"Reading data and writing to AE31_{dte_today}.csv")
-# Listen for the input, exit if nothing received in timeout period
-output = " "
-while True:
-  while output != "":
-    output = ser.readline().decode()
-    print(output),
-    
-    dtm = datetime.datetime.now().isoformat()
-    if dte_today==datetime.datetime.now().strftime('%Y%m%d'):
-        file_data.write(f"{dtm}, {output}")
-    else:
-        file_data.close()
-        dte_today = datetime.datetime.now().strftime('%Y%m%d')
-        file_data = open(f"AE31_{dte_today}.csv", 'w')
-        print(f"Reading data and writing to AE31_{dte_today}.csv")
-        file_data.write(f"{dtm}, {output}")
-        
-  output = " "
-  
-  
+print(f"# Reading data and writing to AE31_{dte_today}.csv")
+data_received = " "
 
-# Close file
-print("Stopped writing to ae31.csv")
-file_data.close()
+# Listen for the input, exit if nothing received in timeout period
+while True:
+    while data_received:
+        data_received = ser.readline().decode()
+        print(f"{data_received[:80]} ..."),
+        
+        dtm = datetime.now().isoformat()
+        if dte_today==datetime.now().strftime('%Y%m%d'):
+            file_data.write(f"{dtm}, {data_received}")
+        else:
+            file_data.close()
+            dte_today = datetime.now().strftime('%Y%m%d')
+            file_data = open(f"AE31_{dte_today}.csv", 'w')
+            print(f"# Reading data and writing to AE31_{dte_today}.csv")
+            file_data.write(f"{dtm}, {data_received}")
