@@ -11,11 +11,12 @@ from datetime import datetime
 def retrieve_and_save_data(serial_port: str, data_path: str):
     # open serial port
     with serial.Serial(serial_port, 9600, 8, 'N', 1, timeout=270) as ser:
+        dtm = datetime.now().isoformat()
         try:
             data_received = ser.readline().decode().strip()
-        except:
-            data_received = " "
-        dtm = datetime.now().isoformat()
+        except Exception as err:
+            data_received = f"serial communication exception {err}"
+
         print(f"{dtm}: {data_received[:80]} ..."),
 
         # open file for the day and get ready to write to it
@@ -37,7 +38,7 @@ if __name__ == "__main__":
     serial_port = '/dev/ttyUSB0'
     data_path = os.path.join('data', 'ae31')
 
-    schedule.every(5).minutes.do(retrieve_and_save_data, serial_port, data_path)
+    schedule.every(1).minutes.do(retrieve_and_save_data, serial_port, data_path)
 
     while True:
         schedule.run_pending()
