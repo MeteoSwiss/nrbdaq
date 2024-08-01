@@ -11,7 +11,7 @@ from datetime import datetime
 def retrieve_and_save_data(serial_port: str, data_path: str):
     # open serial port
     with serial.Serial(serial_port, 9600, 8, 'N', 1, timeout=270) as ser:
-        data_received = ser.readline().decode()
+        data_received = ser.readline() #.decode()
         dtm = datetime.now().isoformat()
         print(f"{dtm}: {data_received[:80]} ..."),
 
