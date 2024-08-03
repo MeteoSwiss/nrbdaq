@@ -46,7 +46,8 @@ def retrieve_and_save_data(serial_port: str, data_path: str):
 
 if __name__ == "__main__":
     serial_port = '/dev/ttyUSB0'
-    data_path = os.path.join('data', 'ae31')
+    data_path = os.path.join(os.getcwd(), 'data', 'ae31')
+    os.makedirs(data_path, exist_ok=True)
 
     schedule.every(1).minutes.do(retrieve_and_save_data, serial_port, data_path)
 
