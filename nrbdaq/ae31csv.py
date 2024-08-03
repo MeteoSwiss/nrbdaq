@@ -36,8 +36,8 @@ def retrieve_and_save_data(serial_port: str, data_path: str):
                 with open(file=file, mode=mode) as fh:
                     fh.write(f"{dtm}, {data_received}\n")
                     # fh.close()
-            else:
-                print(f"{dtm}: no data waiting to be read.")
+            # else:
+            #     print(f"{dtm}: no data waiting to be read.")
             # ser.close()
     except serial.SerialException as err:
         print(f"Serial communication error: {err}")
