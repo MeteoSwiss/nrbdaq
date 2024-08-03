@@ -9,31 +9,38 @@ import time
 from datetime import datetime
 
 def retrieve_and_save_data(serial_port: str, data_path: str):
-    # open serial port
-    with serial.Serial(serial_port, 9600, 8, 'N', 1, timeout=270) as ser:
-        dtm = datetime.now().isoformat(timespec='seconds')
-        if ser.in_waiting > 0:
-            try:
-                data_received = ser.readline().decode().strip()
-            except Exception as err:
-                data_received = f"serial communication exception {err}"
+    try:
+        # open serial port
+        with serial.Serial(serial_port, 9600, 8, 'N', 1, timeout=270) as ser:
+            dtm = datetime.now().isoformat(timespec='seconds')
+            if ser.in_waiting > 0:
+                # try:
+                #     data_received = ser.readline().decode('ascii').strip()
+                # except Exception as err:
+                #     data_received = f"serial communication exception {err}"
+                data_received = ser.readline().decode('ascii').strip()
 
-            print(f"{dtm}: {data_received[:80]} ..."),
+                print(f"{dtm}: {data_received[:80]} ..."),
 
-            # open file for the day and get ready to write to it
-            dte_today = datetime.now().strftime('%Y%m%d')
-            file_path = os.path.join(data_path, f"AE31_{dte_today}.csv")
-            if os.path.exists(file_path):
-                mode = 'a'
+                # open file for the day and get ready to write to it
+                dte_today = datetime.now().strftime('%Y%m%d')
+                file = os.path.join(data_path, f"AE31_{dte_today}.csv")
+                if os.path.exists(file):
+                    mode = 'a'
+                else:
+                    mode = 'w'
+                    print(f"# Reading data and writing to AE31_{dte_today}.csv")
+                
+                with open(file=file, mode=mode) as fh:
+                    fh.write(f"{dtm}, {data_received}\n")
+                    # fh.close()
             else:
-                mode = 'w'
-                print(f"# Reading data and writing to AE31_{dte_today}.csv")
-            
-            with open(file=file_path, mode=mode) as fh:
-                fh.write(f"{dtm}, {data_received}")
-                fh.close()
-
-        ser.close()
+                print(f"{dtm}: no data waiting to be read.")
+            # ser.close()
+    except serial.SerialException as err:
+        print(f"Serial communication error: {err}")
+    except Exception as err:
+        print(f"General error: {err}")
 
 if __name__ == "__main__":
     serial_port = '/dev/ttyUSB0'
