@@ -18,6 +18,8 @@ def retrieve_and_save_data(serial_port: str, data_path: str):
                 #     data_received = ser.readline().decode('ascii').strip()
                 # except Exception as err:
                 #     data_received = f"serial communication exception {err}"
+                print(f"{dtm}: {ser.in_waiting} bytes waiting to be read.")
+            else:
                 data_received = ser.readline().decode('ascii').strip()
 
                 print(f"{dtm}: {data_received[:80]} ..."),
