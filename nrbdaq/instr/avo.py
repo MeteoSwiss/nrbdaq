@@ -1,3 +1,4 @@
+"""iQAIr Air Visual Outdoor (AVO) data download and parsing. Data are stored in .parquet files."""
 import os
 import json
 import polars as pl
@@ -5,6 +6,19 @@ import requests
 
 
 def get_data(url: str, validated: bool=False) -> dict:
+    """
+    Download AVO data from the portal. 
+    The most recent 60 instant (1-minute), 48 hourly, 30/31 daily, 12 monthly values available.
+    It is unclear how data are validated in detail.
+
+    Args:
+        url (str): The API call
+        validated (bool, optional): If True, only validated data are retrieved. 
+        These cover a shorter period. Defaults to False.
+
+    Returns:
+        dict: A nested dictionary
+    """
     if validated:
         url = f"{url}/validated_data"
 
@@ -16,6 +30,16 @@ def get_data(url: str, validated: bool=False) -> dict:
 
 
 def flatten_data(data: dict, parent_key='', sep='_') -> dict:
+    """Flatten a nested JSON object
+
+    Args:
+        data (dict): an AVO data set
+        parent_key (str, optional): ??. Defaults to ''.
+        sep (str, optional): _description_. Defaults to '_'.
+
+    Returns:
+        dict: flattened dict
+    """
     items = []
     for k, v in data.items():
         new_key = f"{parent_key}{sep}{k}" if parent_key else k
@@ -23,12 +47,24 @@ def flatten_data(data: dict, parent_key='', sep='_') -> dict:
             items.extend(flatten_data(v, new_key, sep=sep).items())
         else:
             items.append((new_key, v))
-    return dict(items)    
-    
+    return dict(items)
 
-def data_to_dfs(data: dict, file_path: str=str()) -> tuple[str, dict]:
+
+def data_to_dfs(data: dict, file_path: str=str(),
+                append: bool=True, remove_duplicates: bool=True) -> tuple[str, dict]:
+    """Saves a flattened dictionary as polars DataFrame
+
+    Args:
+        data (dict): flattened dict of AVO data
+        file_path (str, optional): dictionary path for data files. Defaults to str().
+        append (bool, optional): Should existing .parquet files be appended? Defaults to True.
+        remove_duplicates (bool, optional): Should duplicates be removed? Defaults to True.
+
+    Returns:
+        tuple[str, dict]: station name, dictionary of the various data sets
+    """
     if file_path:
-       os.makedirs(file_path, exist_ok=True)
+        os.makedirs(file_path, exist_ok=True)
 
     # Extract name
     station = data['name'].lower().replace(' ', '_')
@@ -59,7 +95,11 @@ def data_to_dfs(data: dict, file_path: str=str()) -> tuple[str, dict]:
 
     if result:
         for key, value in result.items():
-            file = os.path.join(file_path, f"{station}_iqair_{key}.parquet")
+            file = os.path.join(file_path, f"{station}_avo_{key}.parquet")
+            if os.path.exists(file) and append:
+                value = pl.concat([pl.read_parquet(file), value], how='diagonal')
+            if remove_duplicates:
+                value = value.unique()
             # print(file)
             # print(value.schema)
             value.write_parquet(file)

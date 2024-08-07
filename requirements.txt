@@ -4,3 +4,4 @@ schedule
 configparser
 paramiko
 sockslib
+requests
