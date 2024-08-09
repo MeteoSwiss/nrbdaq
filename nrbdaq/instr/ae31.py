@@ -67,7 +67,7 @@ class AE31:
     
     def serial_read_data(self) -> None:
         try:
-            with serial.Serial(self.serial_port, 9600, 8, 'N', 1, self.serial_timeout) as ser:
+            with serial.Serial(self.serial_port, 9600, 8, 'N', 1, int(self.serial_timeout)) as ser:
                 self.dtm = datetime.now().isoformat(timespec='seconds')
                 self.data = ser.readline().decode('ascii').strip()
                 self.logger.info(f"{self.dtm}: {self.data[:80]} ..."),
