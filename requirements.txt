@@ -1,7 +1,7 @@
-pyserial
-polars
-schedule
 configparser
 paramiko
-sockslib
+polars
+pyserial
 requests
+schedule
+sockslib

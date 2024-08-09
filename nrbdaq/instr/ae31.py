@@ -1,246 +1,155 @@
-import configparser
-import logging
 import os
-import time
-from datetime import datetime
-from typing import Optional
-from nrbdaq.utils.utils import setup_logger, load_config
-# import polars as pl
+import colorama
+import logging
+from datetime import datetime, timedelta
+import polars as pl
+# from typing import Optional
+# from nrbdaq.utils.utils import setup_logger, load_config
 import schedule
+import shutil
 import serial
 
+
 class AE31:
-    def __init__(self, config_file: str = 'nrbdaq.cfg'):
-        """
-        Initialize the AE31 instrument class with parameters from a configuration file.
+    def __init__(self, config: dict):
+        """Initialize the AE31 instrument class with parameters from a configuration file.
 
-        :param config_file: Path to the configuration file.
+        Args:
+            config (dict): general configuration
         """
+        colorama.init(autoreset=True)
+
         try:
-            # self.logger = logging.getLogger(__name__)
-
-            self.config = load_config(config_file)
+            # configure logging
+            _logger = f"{os.path.basename(config['logging']['file'])}".split('.')[0]
+            self.logger = logging.getLogger(f"{_logger}.{__name__}")
+            self.logger.info("Initialize AE31")
             
-            self.logger = setup_logger(name=__name__,
-                          file=self.config['logging']['file'], 
-                          level_console=self.config['logging']['level_console'], 
-                          level_file=self.config['logging']['level_file'])
-
-            self.staging_root = os.path.expanduser(self.config['staging']['root'])
-            os.makedirs(self.staging_root, exist_ok=True)
-            self.data_root = os.path.expanduser(self.config['data']['root'])
+            # configure serial port
+            self.serial_port = config['AE31']['serial_port']
+            self.serial_timeout = config['AE31']['serial_timeout']
+            
+            # configure data storage and reporting interval (which determines in what chunks data are persisted)
+            self.data_root = os.path.expanduser(config['data']['root'])
             os.makedirs(self.data_root, exist_ok=True)
-            # self.data = pl.DataFrame({"timestamp": [str()], "data": [str()]})
+            self.reporting_interval = config['data']['reporting_interval']
             
-            self.current_hour = datetime.now().hour
+            # configure data archive
+            self.archive_root = os.path.expanduser(config['archive']['root'])
+            os.makedirs(self.archive_root, exist_ok=True)
+            
+            # configure data transfer
+            self.staging_root = os.path.expanduser(config['staging']['root'])
+            os.makedirs(self.staging_root, exist_ok=True)
 
-            self.port = self.config['AE31']['serial_port']
-            self.baudrate = int(self.config['AE31']['serial_baudrate'])
-            self.timeout = float(self.config['AE31']['serial_timeout'])
-            # self.serial_conn = serial.Serial(self.port, self.baudrate, timeout=self.timeout)
-            # self.serial_conn.close()
+            self.host = config['sftp']['host']
+            self.usr = config['sftp']['usr']
+            self.key = os.path.expanduser(config['sftp']['key'])
+            
+            # initialize data response and datetime stamp           
+            self.data = str()
+            self.dtm = None
 
-        # except serial.SerialException as err:
-        #     self.logger.error(f"Serial communication error: {err}")
-        #     pass
+            # configure data collection, saving and staging
+            self.sampling_interval = config['AE31']['sampling_interval']
+            schedule.every(int(self.sampling_interval)).minutes.at(':00').do(self.serial_read_data)
+            schedule.every(int(self.sampling_interval)).minutes.at(':01').do(self.save_data)
+            if self.reporting_interval=='daily':
+                schedule.every(1).days.at('00:01:00').do(self.stage_data)
+            elif self.reporting_interval=='hourly':
+                schedule.every(1).hours.at('00:01').do(self.stage_data)
+            else:
+                raise ValueError('reporting_interval must be one of daily|hourly.')
         except Exception as err:
             self.logger.error(err)
             pass
 
     
-    def collect_readings_daily_basic(self):
-        """
-        Basic function to open serial port, receive data every 5', append to CSV file, 
-        whereby a new CSV file called 'AE31_yyyymmdd.dat' is generated every day.
-        """
-        # open serial port
-        ser = serial.Serial('/dev/ttyUSB0', 9600, 8, 'N', 1, timeout=360)
-        
-        # open file for the day and get ready to write to it
-        dte_today = datetime.now().strftime('%Y%m%d')
-        file_data = open(f"AE31_{dte_today}.csv", 'w')
-        print(f"# Reading data and writing to AE31_{dte_today}.csv")
-        data_received = " "
-
-        # Listen for the input, exit if nothing received in timeout period
-        while True:
-            while data_received:
-                data_received = ser.readline().decode()
-                print(f"{data_received[:80]} ..."),
-                
-                dtm = datetime.now().isoformat()
-                if dte_today==datetime.now().strftime('%Y%m%d'):
-                    file_data.write(f"{dtm}, {data_received}")
-                else:
-                    file_data.close()
-                    dte_today = datetime.now().strftime('%Y%m%d')
-                    file_data = open(f"AE31_{dte_today}.csv", 'w')
-                    print(f"# Reading data and writing to AE31_{dte_today}.csv")
-                    file_data.write(f"{dtm}, {data_received}")
-
-    
-    def collect_readings_hourly_basic(self):
-        """
-        Basic function to open serial port, receive data every 5', append to CSV file, 
-        whereby a new CSV file called 'AE31_yyyymmddTHH.dat' is generated every hour.
-        """
-        # open serial port
-        ser = serial.Serial('/dev/ttyUSB0', 9600, 8, 'N', 1, timeout=360)
-        
-        # open file for the day and get ready to write to it
-        dtm_this_hour = datetime.now().strftime('%Y%m%dT%H')
-        file_data = open(f"/home/gaw/Documents/data/ae31/AE31_{dtm_this_hour}.csv", 'w')
-        print(f"# Reading data and writing to AE31_{dtm_this_hour}.csv")
-        data_received = " "
-
-        # Listen for the input, exit if nothing received in timeout period
-        while True:
-            while data_received:
-                data_received = ser.readline().decode()
-                print(f"{data_received[:80]} ..."),
-                
-                dtm = datetime.now().isoformat()
-                if dtm_this_hour==datetime.now().strftime('%Y%m%dT%H'):
-                    file_data.write(f"{dtm}, {data_received}")
-                else:
-                    file_data.close()
-                    dtm_this_hour = datetime.now().strftime('%Y%m%dT%H')
-                    file_data = open(f"/home/gaw/Documents/data/AE31_{dtm_this_hour}.csv", 'w')
-                    print(f"# Reading data and writing to AE31_{dtm_this_hour}.csv")
-                    file_data.write(f"{dtm}, {data_received}")
-
-
-    def collect_readings_hourly(self, echo: bool=False) -> str:
-        """
-        Basic function to open serial port, receive and append to CSV file, 
-        whereby a new CSV file called 'AE31_yyyymmddTHH.dat' is generated every hour.
-        """
-        # open serial port
-        ser = serial.Serial('/dev/ttyUSB0', 9600, 8, 'N', 1, timeout=360)
-        data_received = ser.readline().decode('ascii').strip()
-        
-        if data_received:
-            print(f"{data_received[:50]} [...]"),
-            
-            # open file for the hour and get ready to write to it
-            root = os.path.expanduser("~/Documents/data/AE31")
-            dtm = datetime.now()
-            yyyy = dtm.strftime("%Y")
-            mm = dtm.strftime("%m")
-            dd = dtm.strftime("%d")
-        
-            file_path = os.path.join(root, yyyy, mm, dd)
-            os.makedirs(file_path, exist_ok=True)
-            
-            hh = dtm.hour
-            dtm_this_hour = dtm.strftime('%Y%m%dT%H')
-            dtm = dtm.isoformat()
-
-            self.data_file = os.path.join(file_path, f"AE31_{dtm_this_hour}.csv")
-            self.file_to_stage = self.data_file
-
-            if not os.path.exists(self.data_file):
-                print(f"# Reading data and writing to {data_file}")
-
-            with open(self.data_file, 'a') as fh:
-                fh.write(f"{dtm}, {data_received}")
-
-            # Check if we need to write the data to a new file
-            if hh != self.current_hour:
-                self.stage_and_store_data(dtm)
-                # self.data = pl.DataFrame({"timestamp": [str()], "data": [str()]})
-                self.current_hour = hh
-
-
-            return data_received
-        else:
-            return str()
-        
-    
-    def collect_readings(self, echo: bool=False):
-        """
-        Collect readings from the AE31 instrument and store them in hourly parquet files.
-        """
+    def serial_read_data(self) -> None:
         try:
-            if self.serial_conn.closed:
-                self.serial_conn.open()
-
-            raw_data = str()
-            if self.serial_conn.in_waiting > 0:
-                raw_data = self.serial_conn.readline().decode('ascii').strip()     
-                if echo:
-                    print(raw_data)
-            current_time = datetime.now()
-            timestamp = current_time.isoformat()
-
-            if raw_data:
-                # Check for duplicates
-                # if not self.data.filter(pl.col("data") == raw_data).is_empty():
-                if self.data.filter(pl.col("data") == raw_data).is_empty():
-                    new_row = pl.DataFrame({"timestamp": [timestamp], "data": [raw_data]})
-                    self.data = pl.concat([self.data, new_row], how='diagonal')
-
-            # Check if we need to write the data to a new file
-            if self.config['app']['simulate'] or current_time.hour != self.current_hour:
-                self.stage_and_store_data(current_time)
-                self.data = pl.DataFrame({"timestamp": [str()], "data": [str()]})
-                self.current_hour = current_time.hour
+            with serial.Serial(self.serial_port, 9600, 8, 'N', 1, self.serial_timeout) as ser:
+                self.dtm = datetime.now().isoformat(timespec='seconds')
+                self.data = ser.readline().decode('ascii').strip()
+                self.logger.info(f"{self.dtm}: {self.data[:80]} ..."),
+            return
 
         except serial.SerialException as err:
-            self.logger.error(f"Serial communication error: {err}")
+            self.logger.error(f"SerialException: {err}")
             pass
         except Exception as err:
-            self.logger.error(f"General error: {err}")
-            pass
+            self.logger.error(err)
 
-    def stage_and_store_data(self, current_time: datetime):
-        """
-        Write the collected data to a parquet file. 
 
-        :param current_time: The current time to generate the file name.
-        """
-        if self.simulate:
-            file_name = f"AE31_{current_time.strftime('%Y%m%dT%H%M')}.parquet"
-        else:
-            file_name = f"AE31_{current_time.strftime('%Y%m%dT%H')}.parquet"
-        
-        # write data to staging area
-        self.data.write_parquet(os.path.join(self.staging_root, file_name))
-        
-        # write data to data area
-        self.data.write_parquet(os.path.join(self.data_root, file_name))
-        
-        self.logger.info(f"{file_name} staged and stored.")
+    def save_data(self):
+        try:
+            if self.data:
+                if self.reporting_interval=='daily':
+                    timestamp = datetime.now().strftime('%Y%m%d')
+                elif self.reporting_interval=='hourly':
+                    timestamp = datetime.now().strftime('%Y%m%d%H')
+                else:
+                    raise ValueError('reporting_interval must be one of daily|hourly.')
+                file = os.path.join(self.data_root, f"AE31_{timestamp}.csv")
+                if os.path.exists(file):
+                    mode = 'a'
+                else:
+                    mode = 'w'
+                    self.logger.info(f"# Reading data and writing to AE31_{timestamp}.csv")
+                
+                # open file and write to it
+                with open(file=file, mode=mode) as fh:
+                    fh.write(f"{self.dtm}, {self.data}\n")
+
+        except Exception as err:
+            self.logger.error(err)
+
 
     def stage_data(self):
-        """Copy the data file for the previous hour to the staging area."""
-        dtm = datetime.now()
+        """Copy final data file to the staging area. Establish the timestamp of the previous (now complete) file, then copy it to the staging area."""
+        if self.reporting_interval=='daily':
+            timestamp = (datetime.now() - timedelta(days=1)).strftime('%Y%m%d')
+        elif self.reporting_interval=='hourly':
+            timestamp = (datetime.now() - timedelta(hours=1)).strftime('%Y%m%d%H')
+        else:
+            raise ValueError('reporting_interval must be one of daily|hourly.')
+        file = f"AE31_{timestamp}.csv"
+
+        try:
+            if os.path.exists(file):
+                shutil.copyfile(src=os.path.join(self.data_root, file), 
+                                dst=os.path.join(self.staging_root, file))
+        except Exception as err:
+            self.logger.error(err)
+
+
+    def compile_data(self, remove_duplicates: bool=True) -> pl.DataFrame:
+        """Compile data files and save as .parquet
+
+        Returns:
+            pl.DataFrame: compiled data sets
+        """
+        df = pl.DataFrame()
+
+        for root, dirs, files in os.walk(self.data_root):
+            for file in files:
+                if df.is_empty():
+                    df = pl.read_csv(os.path.join(root, file), has_header=False)
+                else:
+                    try:
+                        df = pl.concat([df, pl.read_csv(os.path.join(root, file), has_header=False)], how="diagonal")
+                    except:
+                        self.logger.error(f"{file} could not be appended.")
+                        pass
+        if remove_duplicates:
+            df = df.unique()
         
-        file_name = f"AE31_{current_time.strftime('%Y%m%dT%H')}.parquet"
-        
-        # write data to staging area
-        self.data.write_parquet(os.path.join(self.staging_root, file_name))
-        
-        # write data to data area
-        self.data.write_parquet(os.path.join(self.data_root, file_name))
-        
-        self.logger.info(f"{file_name} staged and stored.")
+        df.sort()
+        df.write_parquet(os.path.join(self.archive_root, 'ae31_nrb.parquet'))
+
 
     def plot_data(self, filepath: str, save: bool=True):
-        df = pl.read_parquet(filepath)
-
-
-    def start(self):
-        """
-        Start the data collection process.
-        """
-        schedule.every(int(self.read_interval)).minutes.do(self.collect_readings)
-        while True:
-            schedule.run_pending()
-            time.sleep(1)
+        self.logger.warning("Not implemented.")
 
 
 if __name__ == "__main__":
-    # ae31 = AE31(config_file='nrbdaq.cfg')
-    # ae31.start()
     pass
