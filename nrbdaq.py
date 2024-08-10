@@ -18,7 +18,7 @@ def main():
     sftp = SFTPClient(config=config)
 
     # start data acquisition, staging and transfer
-    logger.info("# NRBDAQ started.")
+    logger.info("Start NRBDAQ")
     while True:
         schedule.run_pending()
         time.sleep(1)
