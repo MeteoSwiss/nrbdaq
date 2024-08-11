@@ -8,7 +8,7 @@ Manage files. Currently, sftp transfer to MeteoSwiss is supported.
 import logging
 import os
 import re
-import time
+# import time
 from xmlrpc.client import Boolean
 
 import colorama
@@ -216,7 +216,7 @@ class SFTPClient:
                     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                     ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
                     with ssh.open_sftp() as sftp:
-                        sftp.put(localpath=localpath, remotepath=remotepath, confirm=True)
+                        res = sftp.put(localpath=os.path.abspath(os.path.expanduser(localpath)), remotepath=remotepath, confirm=True)
                         sftp.close()
                     self.logger.info(msg)
             else:
@@ -244,7 +244,7 @@ class SFTPClient:
             if remotepath is None:
                 remotepath = '.'
 
-            self.logger.info(f".xfer_r (source: {localpath}, target: {self.host}/{self.usr}/{remotepath})")
+            self.logger.info(f".transfer_all_files (source: {localpath}, target: {self.host}/{self.usr}/{remotepath})")
 
             localitem = None
             remoteitem = None
@@ -259,7 +259,7 @@ class SFTPClient:
                             remoteitem = os.path.join(dirpath.replace(localpath, remotepath), filename)
                             remoteitem = re.sub(r'(\\){1,2}', '/', remoteitem)
                             msg = f".put {localitem.replace(localpath, '')} > {remoteitem}"
-                            res = self.put_file(localpath=localitem, remotepath=remoteitem, confirm=True)
+                            res = sftp.put(localpath=localitem, remotepath=remoteitem, confirm=True)
                             self.logger.info(msg)
 
                             # remove local file from staging if it exists on remote host.

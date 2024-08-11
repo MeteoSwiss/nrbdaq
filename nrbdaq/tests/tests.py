@@ -1,3 +1,4 @@
+import os
 import unittest
 from nrbdaq.utils.utils import load_config
 from nrbdaq.utils.sftp import SFTPClient
@@ -20,10 +21,14 @@ class TestSFTP(unittest.TestCase):
     def test_transfer_single_file(self):
         sftp = SFTPClient(config=config)
 
-        if sftp.remote_item_exists('hello_world.txt'):
+        localpath='nrbdaq/tests'
+        remotepath='.'
+
+        if sftp.remote_item_exists(os.path.join(remotepath, 'hello_world.txt')):
             print('Please remove file from remote before running this test.')
 
-        sftp.put_file(localpath='nrbdaq/tests/hello_world.txt', remotepath='.')
+        sftp.setup_remote_folders(localpath=localpath, remotepath=remotepath)
+        sftp.put_file(os.path.join(localpath, 'hello_world.txt'), remotepath=remotepath)
 
         self.assertEqual(sftp.remote_item_exists('hello_world.txt'), True)
 
