@@ -148,6 +148,18 @@ class SFTPClient:
             self.logger.error(err)
 
 
+    def list_remote_items(self, remotepath: str='/gaw_mkn'):
+        try:
+            with paramiko.SSHClient() as ssh:
+                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
+                with ssh.open_sftp() as sftp:
+                    return sftp.listdir(remotepath)
+
+        except Exception as err:
+            self.logger.error(err)
+
+
     def setup_remote_folders(self, localpath: str=str(), remotepath: str=str()) -> None:
         """
         Determine directory structure under localpath and replicate on remote host.
@@ -197,16 +209,18 @@ class SFTPClient:
             remotepath (str): relative path to remotefile
         """
         try:
-            remotepath = re.sub(r'(/?\.?\\){1,2}', '/', remotepath)
-            msg = f".put {localpath} > {remotepath}"
-            with paramiko.SSHClient() as ssh:
-                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
-                with ssh.open_sftp() as sftp:
-                    sftp.put(localpath=localpath, remotepath=remotepath, confirm=True)
-                    sftp.close()
-                self.logger.info(msg)
-
+            if os.path.exists(localpath):
+                remotepath = re.sub(r'(/?\.?\\){1,2}', '/', remotepath)
+                msg = f".put {localpath} > {remotepath}"
+                with paramiko.SSHClient() as ssh:
+                    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                    ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
+                    with ssh.open_sftp() as sftp:
+                        sftp.put(localpath=localpath, remotepath=remotepath, confirm=True)
+                        sftp.close()
+                    self.logger.info(msg)
+            else:
+                raise ValueError("localpath does not exist.")
         except Exception as err:
             self.logger.error(err)
 
