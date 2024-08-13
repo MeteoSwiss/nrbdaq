@@ -19,7 +19,7 @@ def main():
 
     # setup AVO data download (NB: we treat all 3 AVOs, not only Nairobi)
     urls = dict(config['AVO'])
-    file_path = os.path.join(os.path.expanduser(config['data']['root']), 'avo')
+    file_path = os.path.expanduser(config['AVO']['data'])
     schedule.every(1).days.at('00:00:00').do(avo.get_data_all, urls, file_path)
 
     # setup sftp client

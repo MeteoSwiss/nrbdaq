@@ -53,17 +53,17 @@ class AE31:
             self.serial_timeout = config['AE31']['serial_timeout']
             
             # configure data storage and reporting interval (which determines in what chunks data are persisted)
-            self.data_root = os.path.expanduser(config['data']['root'])
-            os.makedirs(self.data_root, exist_ok=True)
-            self.reporting_interval = config['data']['reporting_interval']
+            self.data_path = os.path.expanduser(config['AE31']['data'])
+            os.makedirs(self.data_path, exist_ok=True)
+            self.reporting_interval = config['AE31']['reporting_interval']
             
             # configure data archive
-            self.archive_root = os.path.expanduser(config['archive']['root'])
-            os.makedirs(self.archive_root, exist_ok=True)
+            self.archive_path = os.path.expanduser(config['AE31']['archive'])
+            os.makedirs(self.archive_path, exist_ok=True)
             
             # configure data transfer
-            self.staging_root = os.path.expanduser(config['staging']['root'])
-            os.makedirs(self.staging_root, exist_ok=True)
+            self.staging_path = os.path.expanduser(config['AE31']['staging'])
+            os.makedirs(self.staging_path, exist_ok=True)
 
             self.host = config['sftp']['host']
             self.usr = config['sftp']['usr']
@@ -112,12 +112,12 @@ class AE31:
                     timestamp = datetime.now().strftime('%Y%m%d%H')
                 else:
                     raise ValueError('reporting_interval must be one of daily|hourly.')
-                file = os.path.join(self.data_root, f"AE31_{timestamp}.csv")
+                file = os.path.join(self.data_path, f"AE31_{timestamp}.csv")
                 if os.path.exists(file):
                     mode = 'a'
                 else:
                     mode = 'w'
-                    self.logger.info(f"# Reading data and writing to AE31_{timestamp}.csv")
+                    self.logger.info(f"# Reading data and writing to {self.data_path}/AE31_{timestamp}.csv")
                 
                 # open file and write to it
                 with open(file=file, mode=mode) as fh:
@@ -139,8 +139,8 @@ class AE31:
 
         try:
             if os.path.exists(file):
-                shutil.copyfile(src=os.path.join(self.data_root, file), 
-                                dst=os.path.join(self.staging_root, file))
+                shutil.copyfile(src=os.path.join(self.data_path, file), 
+                                dst=os.path.join(self.staging_path, file))
         except Exception as err:
             self.logger.error(err)
 
@@ -153,7 +153,7 @@ class AE31:
         """
         df = pl.DataFrame()
 
-        for root, dirs, files in os.walk(self.data_root):
+        for root, dirs, files in os.walk(self.data_path):
             for file in files:
                 if df.is_empty():
                     df = pl.read_csv(os.path.join(root, file), has_header=False)
@@ -167,7 +167,7 @@ class AE31:
             df = df.unique()
         
         df.sort()
-        df.write_parquet(os.path.join(self.archive_root, 'ae31_nrb.parquet'))
+        df.write_parquet(os.path.join(self.archive_path, 'ae31_nrb.parquet'))
 
 
     def plot_data(self, filepath: str, save: bool=True):
