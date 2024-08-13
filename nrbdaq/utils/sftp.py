@@ -140,7 +140,7 @@ class SFTPClient:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
                 with ssh.open_sftp() as sftp:
-                    if sftp.stat(remoteitem).size > 0:
+                    if sftp.stat(remoteitem).st_size > 0:
                         return True
                     else:
                         return False
@@ -216,11 +216,33 @@ class SFTPClient:
                     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                     ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
                     with ssh.open_sftp() as sftp:
-                        res = sftp.put(localpath=os.path.abspath(os.path.expanduser(localpath)), remotepath=remotepath, confirm=True)
+                        res = sftp.put(localpath=localpath, remotepath=os.path.join(remotepath, os.path.basename(localpath)), confirm=True)
                         sftp.close()
                     self.logger.info(msg)
             else:
                 raise ValueError("localpath does not exist.")
+        except Exception as err:
+            self.logger.error(err)
+
+
+    def remove_remote_file(self, remotepath: str) -> None:
+        """Remove a file or (empty) directory on a remotehost using SFTP and SSH.
+
+        Args:
+            remotepath (str): relative path to remote item
+        """
+        try:
+            if self.remote_item_exists(remoteitem=remotepath):
+                msg = f".remove_file {remotepath}"
+                with paramiko.SSHClient() as ssh:
+                    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                    ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
+                    with ssh.open_sftp() as sftp:
+                        res = sftp.remove(remotepath)
+                        sftp.close()
+                    self.logger.info(msg)
+            else:
+                raise ValueError("remotepath does not exist.")
         except Exception as err:
             self.logger.error(err)
 

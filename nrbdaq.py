@@ -1,8 +1,11 @@
+import os
 import schedule
 import time
 from nrbdaq.instr.ae31 import AE31
+import nrbdaq.instr.avo as avo
 from nrbdaq.utils.sftp import SFTPClient
 from nrbdaq.utils.utils import load_config, setup_logging
+
 
 def main():
     # load configuation
@@ -13,6 +16,11 @@ def main():
 
     # instantiate instrument(s)
     ae31 = AE31(config=config)
+
+    # setup AVO data download (NB: we treat all 3 AVOs, not only Nairobi)
+    urls = dict(config['AVO'])
+    file_path = os.path.join(config['data'], 'avo')
+    schedule.every(1).days.at('00:00:00').do(avo.get_data_all, urls, file_path)
 
     # setup sftp client
     sftp = SFTPClient(config=config)
@@ -26,6 +34,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
-
-

@@ -9,6 +9,29 @@ import schedule
 import shutil
 import serial
 
+# 14.9.3  Data File Format - Seven wavelength Instruments 
+# The AE-3 series seven wavelength Aethalometers measure optical 
+# absorbance at seven optical wavelengths from 370 to 950 nm.  The data 
+# are reported on a single line written to disk as follows: 
+# • Expanded Data Format:  “date”, “time”, UV [370 nm] result,  
+# Blue [470 nm] result, Green [520 nm] result, Yellow [590 nm] 
+# result, Red [660 nm] result, IR1 [880 nm, “standard BC”] result, 
+# IR2 [950 nm] result,  air flow (LPM), bypass fraction, 
+# and then the following columns of data repeated for the seven 
+# measurement wavelengths: 
+# sensing zero signal, sensing beam signal, reference zero signal, 
+# reference beam signal, optical attenuation, air flow (LPM), bypass 
+# fraction.    
+# The ‘air flow’ and ‘bypass fraction’ columns are repeated to allow for 
+# easy visual identification of the separation between the seven sets of 
+# data columns. 
+# A typical line in the data file might look like: 
+# "24-jul-00","16:40", 610 , 604 , 605 , 612 , 617 , 611 , 641 , 3.131 ,-
+# .9812 ,-.9814 , 1.1881 , 1.8384 , 1 , 6.4 , 2.704 ,-.9812 ,-.9814 , 4.2483 
+# , 2.7373 , 1 , 6.4 , 2.45 ,-.9812 ,-.9814 , 2.1716 , 1.9438 , 1 , 6.4 , 2.232 
+# ,-.9812 ,-.9814 , 2.854 , 3.5259 , 1 , 6.4 , 1.957 ,-.9812 ,-.9814 , 3.3428 
+# , 2.596 , 1 , 6.4 , 1.452 ,-.9812 ,-.9814 , 4.6719 , 3.3935 , 1 , 6.4 , 1.396 
+# ,-.9812 ,-.9814 , 2.705 , 2.438 , 1 , 6.4  
 
 class AE31:
     def __init__(self, config: dict):

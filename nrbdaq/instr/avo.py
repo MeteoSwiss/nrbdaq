@@ -77,22 +77,6 @@ def data_to_dfs(data: dict, file_path: str=str(),
 
     result = dict(zip(keys, values))
 
-    # # Extract and flatten instant data
-    # instant_data = [flatten_data(entry) for entry in data['historical']['instant']]
-    # instant_df = pl.DataFrame(instant_data)
-
-    # # Extract and flatten hourly data
-    # hourly_data = [flatten_data(entry) for entry in data['historical']['hourly']]
-    # hourly_df = pl.DataFrame(hourly_data)
-
-    # # Extract and flatten daily data
-    # daily_data = [flatten_data(entry) for entry in data['historical']['daily']]
-    # daily_df = pl.DataFrame(daily_data)
-
-    # # Extract and flatten monthly data
-    # monthly_data = [flatten_data(entry) for entry in data['historical']['monthly']]
-    # monthly_df = pl.DataFrame(monthly_data)
-
     if result:
         for key, value in result.items():
             file = os.path.join(file_path, f"{station}_avo_{key}.parquet")
@@ -100,8 +84,16 @@ def data_to_dfs(data: dict, file_path: str=str(),
                 value = pl.concat([pl.read_parquet(file), value], how='diagonal')
             if remove_duplicates:
                 value = value.unique()
+            value = value.sort(by=pl.col('ts'))
             # print(file)
             # print(value.schema)
             value.write_parquet(file)
 
     return station, result
+
+
+def get_data_all(urls: dict, file_path: str):
+    for key, url in urls.items():
+        print(f"retrieving from {key}")
+        data = get_data(url=url)
+        dfs = data_to_dfs(data=data, file_path=file_path)
