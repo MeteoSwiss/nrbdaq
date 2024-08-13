@@ -66,7 +66,7 @@ class SFTPClient:
             #                         self.config['sftp']['proxy']['port']), sockslib.Socks.SOCKS5)
 
             # configure staging
-            self.staging = os.path.expanduser(config['staging']['root'])
+            self.staging = os.path.expanduser(config['sftp']['staging'])
             self.staging = re.sub(r'(/?\.?\\){1,2}', '/', self.staging)
 
             # configure transfer schedule
