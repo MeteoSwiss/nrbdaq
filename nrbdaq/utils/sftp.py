@@ -66,8 +66,12 @@ class SFTPClient:
             #                         self.config['sftp']['proxy']['port']), sockslib.Socks.SOCKS5)
 
             # configure staging
-            self.staging = os.path.expanduser(config['sftp']['staging'])
+            self.staging = os.path.join(os.path.expanduser(config['root']), config['sftp']['local_path'])
             self.staging = re.sub(r'(/?\.?\\){1,2}', '/', self.staging)
+
+            # configure staging
+            self.remotepath = os.path.join(os.path.expanduser(config['root']), config['sftp']['remote_path'])
+            self.remotepath = re.sub(r'(/?\.?\\){1,2}', '/', self.remotepath)
 
             # configure transfer schedule
             self.reporting_interval = config['data']['reporting_interval']
@@ -148,7 +152,7 @@ class SFTPClient:
             self.logger.error(err)
 
 
-    def list_remote_items(self, remotepath: str='/gaw_mkn'):
+    def list_remote_items(self, remotepath: str='.'):
         try:
             with paramiko.SSHClient() as ssh:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -176,7 +180,7 @@ class SFTPClient:
             localpath = re.sub(r'(/?\.?\\){1,2}', '/', localpath)
 
             if remotepath is None:
-                remotepath = '.'
+                remotepath = self.remotepath
 
             # sanitize remotepath
             remotepath = re.sub(r'(/?\.?\\){1,2}', '/', remotepath)
