@@ -3,6 +3,7 @@ configparser
 paramiko
 polars
 pyserial
+pyyaml
 requests
 schedule
 sockslib
