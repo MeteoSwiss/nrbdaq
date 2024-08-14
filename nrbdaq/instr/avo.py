@@ -1,11 +1,13 @@
 """iQAIr Air Visual Outdoor (AVO) data download and parsing. Data are stored in .parquet files."""
 import os
+import datetime as datetime
 import json
 import polars as pl
 import requests
+import shutil
 
 
-def get_data(url: str, validated: bool=False) -> dict:
+def download_data(url: str, validated: bool=False) -> dict:
     """
     Download AVO data from the portal. 
     The most recent 60 instant (1-minute), 48 hourly, 30/31 daily, 12 monthly values available.
@@ -51,7 +53,7 @@ def flatten_data(data: dict, parent_key='', sep='_') -> dict:
 
 
 def data_to_dfs(data: dict, file_path: str=str(),
-                append: bool=True, remove_duplicates: bool=True) -> tuple[str, dict]:
+                append: bool=True, remove_duplicates: bool=True, staging: str=str()) -> tuple[str, dict]:
     """Saves a flattened dictionary as polars DataFrame
 
     Args:
@@ -59,6 +61,7 @@ def data_to_dfs(data: dict, file_path: str=str(),
         file_path (str, optional): dictionary path for data files. Defaults to str().
         append (bool, optional): Should existing .parquet files be appended? Defaults to True.
         remove_duplicates (bool, optional): Should duplicates be removed? Defaults to True.
+        staging (str, optional): Path to staging directory. Defaults to str() (= no staging).
 
     Returns:
         tuple[str, dict]: station name, dictionary of the various data sets
@@ -74,26 +77,32 @@ def data_to_dfs(data: dict, file_path: str=str(),
 
     # Extract and flatten data into a list of several polars DataFrames
     values = [pl.DataFrame([flatten_data(entry) for entry in data['historical'][key]]) for key in keys]
-
+    
     result = dict(zip(keys, values))
 
     if result:
         for key, value in result.items():
-            file = os.path.join(file_path, f"{station}_avo_{key}.parquet")
-            if os.path.exists(file) and append:
-                value = pl.concat([pl.read_parquet(file), value], how='diagonal')
+            # Convert ts to pl.Datetime
+            value = value.with_columns(pl.col("ts").str.to_datetime()).sort(by=pl.col('ts'))
+            dtm = datetime.datetime.now().strftime("%Y%m%d")
+            file = os.path.join(file_path, f"{station}_avo_{key}-{dtm}.parquet")
+            if append:
+                if os.path.exists(file):
+                    value = pl.concat([pl.read_parquet(file), value], how='diagonal')
             if remove_duplicates:
                 value = value.unique()
-            value = value.sort(by=pl.col('ts'))
             # print(file)
             # print(value.schema)
             value.write_parquet(file)
+            if staging:
+                os.makedirs(os.path.join(os.path.expanduser(staging)), exist_ok=True)
+                shutil.copy(src=file, dst=os.path.join(os.path.expanduser(staging), os.path.basename(file)))
 
     return station, result
 
 
-def get_data_all(urls: dict, file_path: str):
+def download_multiple(urls: dict, file_path: str, staging: str=str()):
     for key, url in urls.items():
         print(f"retrieving from {key}")
-        data = get_data(url=url)
-        dfs = data_to_dfs(data=data, file_path=file_path)
+        data = download_data(url=url)
+        dfs = data_to_dfs(data=data, file_path=file_path, staging=staging)

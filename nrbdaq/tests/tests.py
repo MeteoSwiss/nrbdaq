@@ -4,7 +4,7 @@ from nrbdaq.utils.utils import load_config
 from nrbdaq.utils.sftp import SFTPClient
 import nrbdaq.instr.avo as avo
 
-config = load_config('nrbdaq.cfg')
+config = load_config('nrbdaq.yaml')
 
 class TestSFTP(unittest.TestCase):
     def test_config_host(self):
@@ -34,10 +34,16 @@ class TestSFTP(unittest.TestCase):
 
 
 class TestAVO(unittest.TestCase):
-    def test_get_data(self, url=config['AVO']['url_nairobi']):
-        file_path = os.path.join(os.path.expanduser(config['data']['root']), 'avo')
-        data = avo.get_data(url=url)
+    def test_download_data(self):
+        data = avo.download_data(url=config['AVO']['urls']['url_nairobi'])
         self.assertEqual(list(data.keys()), ['historical', 'name', 'current'])
+
+    def test_data_to_dfs(self):
+        data = avo.download_data(url=config['AVO']['urls']['url_nairobi'])
+        station, dfs = avo.data_to_dfs(data=data, 
+                              file_path=os.path.join(os.path.expanduser(config['root']), config['AVO']['data']),
+                              staging=os.path.join(os.path.expanduser(config['root']), config['AVO']['staging']))
+        self.assertEqual(station, 'kmd_hq_nairobi')
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

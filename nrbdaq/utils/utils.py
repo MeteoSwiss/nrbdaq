@@ -1,16 +1,24 @@
 import os
 import configparser
 import logging
+import yaml
 
 def load_config(config_file: str) -> configparser.ConfigParser:
     """
-    Load configuration from a file.
+    Load configuration from config file.
 
     :param config_file: Path to the configuration file.
     :return: ConfigParser object with the loaded configuration.
     """
-    config = configparser.ConfigParser()
-    config.read(config_file)
+    extension = os.path.basename(config_file).split(".")[1].lower()
+    if extension == "ini": 
+        config = configparser.ConfigParser()
+        config.read(config_file)
+    elif extension == 'yaml' or extension == 'yml':
+        with open(config_file, 'r') as fh:
+            config = yaml.safe_load(fh)
+    else:
+        print("Extension of config file not recognized!)")
     return config
 
 
@@ -23,7 +31,6 @@ def setup_logging(file: str) -> logging:
     Returns:
         logging: a logger object
     """
-    file = os.path.expanduser(file)
     file_path = os.path.dirname(file)
     os.makedirs(file_path, exist_ok=True)
 

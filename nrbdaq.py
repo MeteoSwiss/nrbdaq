@@ -9,18 +9,22 @@ from nrbdaq.utils.utils import load_config, setup_logging
 
 def main():
     # load configuation
-    config = load_config(config_file='nrbdaq.cfg')
+    config = load_config(config_file='nrbdaq.yaml')
 
     # setup logging
-    logger = setup_logging(config['logging']['file'])
+    logger = setup_logging(os.path.join(os.path.expanduser(config['root']), config['logging']['file']))
 
     # instantiate instrument(s)
     ae31 = AE31(config=config)
 
-    # setup AVO data download (NB: we treat all 3 AVOs, not only Nairobi)
-    urls = dict(config['AVO'])
-    file_path = os.path.expanduser(config['AVO']['data'])
-    schedule.every(1).days.at('00:00:00').do(avo.get_data_all, urls, file_path)
+    # setup AVO data download for Nairobi
+    url = config['AVO']['urls']['url_nairobi']
+    file_path=os.path.join(os.path.expanduser(config['root']), config['AVO']['data'])
+    staging=os.path.join(os.path.expanduser(config['root']), config['AVO']['staging'])
+    schedule.every(6).hours.at(':00').do(avo.download_multiple, 
+                                         urls={'url_nairobi': url}, 
+                                         file_path=file_path, 
+                                         staging=staging)
 
     # setup sftp client
     sftp = SFTPClient(config=config)

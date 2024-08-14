@@ -52,17 +52,19 @@ class AE31:
             self.serial_port = config['AE31']['serial_port']
             self.serial_timeout = config['AE31']['serial_timeout']
             
+            _root = os.path.expanduser(config['root'])
+
             # configure data storage and reporting interval (which determines in what chunks data are persisted)
-            self.data_path = os.path.expanduser(config['AE31']['data'])
+            self.data_path = os.path.join(_root, config['AE31']['data'])
             os.makedirs(self.data_path, exist_ok=True)
             self.reporting_interval = config['AE31']['reporting_interval']
             
             # configure data archive
-            self.archive_path = os.path.expanduser(config['AE31']['archive'])
+            self.archive_path = os.path.join(_root, config['AE31']['archive'])
             os.makedirs(self.archive_path, exist_ok=True)
             
             # configure data transfer
-            self.staging_path = os.path.expanduser(config['AE31']['staging'])
+            self.staging_path = os.path.join(_root, config['AE31']['staging'])
             os.makedirs(self.staging_path, exist_ok=True)
 
             self.host = config['sftp']['host']
@@ -93,7 +95,7 @@ class AE31:
             with serial.Serial(self.serial_port, 9600, 8, 'N', 1, int(self.serial_timeout)) as ser:
                 self.dtm = datetime.now().isoformat(timespec='seconds')
                 self.data = ser.readline().decode('ascii').strip()
-                self.logger.info(f"{self.dtm}: {self.data[:80]} ..."),
+                self.logger.info(f"{self.data[:80]} ..."),
             return
 
         except serial.SerialException as err:

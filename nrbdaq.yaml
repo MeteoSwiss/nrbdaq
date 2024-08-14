@@ -1,0 +1,52 @@
+root: ~/git/nrbdaq/nrbdaq
+
+AE31:
+# NB: Configure AE31 to use the default settings (9600, 8, 1, N).
+# NB: [serial_timeout] seconds
+# NB: [sampling_interval] minutes
+# NB: specify data, staging, archive relative to root
+# NB: specify reporting_interval as one of daily|hourly
+  serial_port: /dev/ttyUSB0
+  serial_timeout: 270
+  sampling_interval: 5
+  reporting_interval: daily
+  staging: staging/ae31
+  data: data/ae31
+  archive: archive/ae31
+
+# [Aurora3000]
+# serial_port = COM3
+# serial_baudrate = 9600
+# serial_timeout = 1
+# read_interval = 1
+
+AVO:
+# NB: list deployments of AirVisual Outdoor unit or which data should be downloaded as url_{site}
+# NB: specify data, staging, archive relative to root
+# NB: specify reporting_interval as one of daily|hourly
+  urls:
+    url_mogogosiek: https://device.iqair.com/v2/64b78e3ed49ffdbbf25ce862
+    url_nairobi: https://device.iqair.com/v2/64b79227b6f7b1125b019970
+    url_bomet: https://device.iqair.com/v2/64ad7a78e939e8f45b826839
+  data: data/avo
+  staging: staging/avo
+  reporting_interval: daily
+
+logging:
+# NB: specify file relative to root
+  file: nrbdaq.log
+  level_console: DEBUG
+  level_file: ERROR
+
+sftp:
+# NB: specify local_source relative to root
+  host: sftp.meteoswiss.ch
+  usr: gaw_mkn
+  key: ~/.ssh/private-open-ssh-4096-mkn.ppk
+  local_source: staging
+  remote_path: .
+
+# future
+# [dxs]
+# host = https://servicedevt.meteoswiss.ch/dxs/api/v1/fileupload
+# key = ~/.ssh/dxs_key.txt
