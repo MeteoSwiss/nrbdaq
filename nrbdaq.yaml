@@ -23,14 +23,14 @@ AE31:
 AVO:
 # NB: list deployments of AirVisual Outdoor unit or which data should be downloaded as url_{site}
 # NB: specify data, staging, archive relative to root
-# NB: specify reporting_interval as one of daily|hourly
+# NB: specify download_interval as one of daily|N (hourly)
   urls:
     url_mogogosiek: https://device.iqair.com/v2/64b78e3ed49ffdbbf25ce862
     url_nairobi: https://device.iqair.com/v2/64b79227b6f7b1125b019970
     url_bomet: https://device.iqair.com/v2/64ad7a78e939e8f45b826839
   data: data/avo
   staging: staging/avo
-  reporting_interval: daily
+  download_interval: 6
 
 logging:
 # NB: specify file relative to root
@@ -45,6 +45,7 @@ sftp:
   key: ~/.ssh/private-open-ssh-4096-mkn.ppk
   local_source: staging
   remote_path: .
+  reporting_interval: daily
 
 # future
 # [dxs]

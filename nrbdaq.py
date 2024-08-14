@@ -21,7 +21,14 @@ def main():
     url = config['AVO']['urls']['url_nairobi']
     file_path=os.path.join(os.path.expanduser(config['root']), config['AVO']['data'])
     staging=os.path.join(os.path.expanduser(config['root']), config['AVO']['staging'])
-    schedule.every(6).hours.at(':00').do(avo.download_multiple, 
+    download_interval = config['AVO']['download_interval']
+    if download_interval == 'daily':
+        schedule.every(1).days.at('00:00').do(avo.download_multiple, 
+                                         urls={'url_nairobi': url}, 
+                                         file_path=file_path, 
+                                         staging=staging)
+    else:
+        schedule.every(config['AVO']['download_interval']).hours.at(':00').do(avo.download_multiple, 
                                          urls={'url_nairobi': url}, 
                                          file_path=file_path, 
                                          staging=staging)

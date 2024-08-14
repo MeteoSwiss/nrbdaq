@@ -74,7 +74,7 @@ class SFTPClient:
             self.remotepath = re.sub(r'(/?\.?\\){1,2}', '/', self.remotepath)
 
             # configure transfer schedule
-            self.reporting_interval = config['data']['reporting_interval']
+            self.reporting_interval = config['sftp']['reporting_interval']
             if self.reporting_interval=='daily':
                 schedule.every(1).days.at('00:01:00').do(self.transfer_all_files)
             elif self.reporting_interval=='hourly':
