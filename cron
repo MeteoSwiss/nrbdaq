@@ -1,4 +1,4 @@
 # crontab -e
 
 # (re-)start program every 24h at midnight
-0 0 * * * /home/gaw/git/nrbdaq/ae31.sh
+0 0 * * * source /home/gaw/git/nrbdaq/nrbdaq.sh
