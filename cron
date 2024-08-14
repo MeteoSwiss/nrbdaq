@@ -1,4 +1,5 @@
 # crontab -e
 
-# (re-)start program every 24h at midnight
-0 0 * * * source /home/gaw/git/nrbdaq/nrbdaq.sh
+# (re-)start program every 24h at midnight or after boot
+0 0 * * * source /home/gaw/git/nrbdaq/nrbdaq.sh > /dev/stdout 2>&1
+@reboot source /home/gaw/git/nrbdaq/nrbdaq.sh > /dev/stdout 2>&1
