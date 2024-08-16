@@ -1,5 +1,5 @@
-# root: ~/git/nrbdaq/nrbdaq
-root: /product_data/data/pay/Kenya/git/nrbdaq/nrbdaq
+root: ~/git/nrbdaq/nrbdaq
+# root: /product_data/data/pay/Kenya/git/nrbdaq/nrbdaq
 
 AE31:
 # NB: Configure AE31 to use the default settings (9600, 8, 1, N).
