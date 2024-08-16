@@ -84,7 +84,8 @@ def data_to_dfs(data: dict, file_path: str=str(),
         for key, value in result.items():
             # Convert ts to pl.Datetime
             value = value.with_columns(pl.col("ts").str.to_datetime()).sort(by=pl.col('ts'))
-            dtm = datetime.datetime.now().strftime("%Y%m%d")
+            format = "%Y%m" if key=="monthly" else "%Y%m%d"
+            dtm = datetime.datetime.now().strftime(format)
             file = os.path.join(file_path, f"{station}_avo_{key}-{dtm}.parquet")
             if append:
                 if os.path.exists(file):

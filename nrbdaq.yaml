@@ -1,16 +1,18 @@
-root: ~/git/nrbdaq/nrbdaq
+# root: ~/git/nrbdaq/nrbdaq
+root: /product_data/data/pay/Kenya/git/nrbdaq/nrbdaq
 
 AE31:
 # NB: Configure AE31 to use the default settings (9600, 8, 1, N).
 # NB: [serial_timeout] seconds
 # NB: [sampling_interval] minutes
 # NB: specify data, staging, archive relative to root
-# NB: specify reporting_interval as one of daily|hourly
+# NB: [reporting_interval] hours
   serial_port: /dev/ttyUSB0
   serial_timeout: 270
   sampling_interval: 5
-  reporting_interval: daily
+  reporting_interval: 24
   staging: staging/ae31
+  remote_path: ae31
   data: data/ae31
   archive: archive/ae31
 
@@ -23,13 +25,14 @@ AE31:
 AVO:
 # NB: list deployments of AirVisual Outdoor unit or which data should be downloaded as url_{site}
 # NB: specify data, staging, archive relative to root
-# NB: specify download_interval as one of daily|N (hourly)
+# NB: [download_interval] hours
   urls:
     url_mogogosiek: https://device.iqair.com/v2/64b78e3ed49ffdbbf25ce862
     url_nairobi: https://device.iqair.com/v2/64b79227b6f7b1125b019970
     url_bomet: https://device.iqair.com/v2/64ad7a78e939e8f45b826839
   data: data/avo
   staging: staging/avo
+  remote_path: avo
   download_interval: 6
 
 logging:
@@ -43,9 +46,8 @@ sftp:
   host: sftp.meteoswiss.ch
   usr: gaw_mkn
   key: ~/.ssh/private-open-ssh-4096-mkn.ppk
-  local_source: staging
-  remote_path: .
-  reporting_interval: daily
+  local_path: staging
+  remote_path: '.'
 
 # future
 # [dxs]

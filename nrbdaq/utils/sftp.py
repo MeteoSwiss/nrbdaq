@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Manage files. Currently, sftp transfer to MeteoSwiss is supported.
+Manage file transfer. Currently, sftp transfer to MeteoSwiss is supported.
 
 @author: joerg.klausen@meteoswiss.ch
 """
 import logging
 import os
 import re
-# import time
 from xmlrpc.client import Boolean
 
 import colorama
@@ -23,12 +22,13 @@ class SFTPClient:
 
     Available methods include
     - is_alive():
-    - localfiles():
-    - stage_current_log_file():
-    - stage_current_config_file():
+    - list_local_files():
+    - remote_item_exists():
+    - list_remote_items():
     - setup_remote_folders():
-    - put_r(): recursively put files
-    - xfer_r(): recursively move files
+    - put_file():
+    - remove_remote_item():
+    - transfer_files(): transfer files,  optionally removing files from source
     """
     staging = None
     key = None
@@ -43,7 +43,8 @@ class SFTPClient:
                     config['sftp']['host']:
                     config['sftp']['usr']:
                     config['sftp']['key']:
-                    config['staging']['root']: relative path of staging area
+                    config['sftp']['local_path']: relative path to local source (= staging)
+                    config['sftp']['remote_path']: (absolute?) root of remote destination
         """
         colorama.init(autoreset=True)
 
@@ -51,38 +52,29 @@ class SFTPClient:
             # configure logging
             _logger = f"{os.path.basename(config['logging']['file'])}".split('.')[0]
             self.logger = logging.getLogger(f"{_logger}.{__name__}")
+            self.schedule_logger = logging.getLogger(f"{_logger}.schedule")
+            self.schedule_logger.setLevel(level=logging.DEBUG)
+            
             self.logger.info("Initialize SFTPClient")
 
-            # sftp settings
+            # sftp connection settings
             self.host = config['sftp']['host']
             self.usr = config['sftp']['usr']
             self.key = paramiko.RSAKey.from_private_key_file(\
                 os.path.expanduser(config['sftp']['key']))
-
+            
             # # configure client proxy if needed
             # if self.config['sftp']['proxy']['socks5']:
             #     with sockslib.SocksSocket() as sock:
             #         sock.set_proxy((self.config['sftp']['proxy']['socks5'],
             #                         self.config['sftp']['proxy']['port']), sockslib.Socks.SOCKS5)
 
-            # configure staging
-            self.staging = os.path.join(os.path.expanduser(config['root']), config['sftp']['local_source'])
-            self.staging = re.sub(r'(/?\.?\\){1,2}', '/', self.staging)
+            # configure local source
+            self.local_path = os.path.join(os.path.expanduser(config['root']), config['sftp']['local_path'])
+            self.local_path = re.sub(r'(/?\.?\\){1,2}', '/', self.local_path)
 
-            # configure staging
-            self.remotepath = os.path.join(os.path.expanduser(config['root']), config['sftp']['remote_path'])
-            self.remotepath = re.sub(r'(/?\.?\\){1,2}', '/', self.remotepath)
-
-            # configure transfer schedule
-            self.reporting_interval = config['sftp']['reporting_interval']
-            if self.reporting_interval=='daily':
-                schedule.every(1).days.at('00:01:00').do(self.transfer_all_files)
-            elif self.reporting_interval=='hourly':
-                schedule.every(1).hours.at('00:01').do(self.transfer_all_files)
-            else:
-                raise ValueError('reporting_interval must be one of daily|hourly.')
-
-            # self._zip = self.config['staging']['zip']
+            # configure remote destination
+            self.remote_path = config['sftp']['remote_path']
 
         except Exception as err:
             self.logger.error(err)
@@ -107,30 +99,30 @@ class SFTPClient:
             return False
 
 
-    def localfiles(self, localpath: str=None) -> list[str]:
+    def list_local_files(self, local_path: str=str()) -> list[str]:
         """Establish list of local files.
 
         Args:
-            localpath ([type], optional): [description]. Defaults to None.
+            localpath (str, optional): Absolute path to directory containing folders and files. Defaults to str().
 
         Returns:
-            list: [description]
+            list: absolute paths of local files
         """
-        fnames = list()
+        files = list()
 
-        if localpath is None:
-            localpath = self.staging
+        if local_path is None:
+            local_path = self.local_path
 
         try:
-            root, dnames, fnames = os.walk(localpath)
-            fnames = [os.path.join(root, re.sub(r'(/?\.?\\){1,2}', '/', s)) for s in fnames]
-            return fnames
+            root, dirs, files = os.walk(local_path)
+            files = [os.path.join(root, file) for file in files]
+            return files
 
         except Exception as err:
             self.logger.error(err)
 
 
-    def remote_item_exists(self, remoteitem: str) -> Boolean:
+    def remote_item_exists(self, remote_item: str) -> Boolean:
         """Check on remote server if an item exists. Assume this indicates successful transfer.
 
         Args:
@@ -144,58 +136,55 @@ class SFTPClient:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
                 with ssh.open_sftp() as sftp:
-                    if sftp.stat(remoteitem).st_size > 0:
-                        return True
-                    else:
-                        return False
+                    return True if sftp.stat(remote_item).st_size > 0 else False
         except Exception as err:
             self.logger.error(err)
 
 
-    def list_remote_items(self, remotepath: str='.'):
+    def list_remote_items(self, remote_path: str='.'):
         try:
             with paramiko.SSHClient() as ssh:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
                 with ssh.open_sftp() as sftp:
-                    return sftp.listdir(remotepath)
+                    return sftp.listdir(remote_path)
 
         except Exception as err:
             self.logger.error(err)
 
 
-    def setup_remote_folders(self, localpath: str=str(), remotepath: str=str()) -> None:
+    def setup_remote_folders(self, local_path: str=str(), remote_path: str=str()) -> None:
         """
-        Determine directory structure under localpath and replicate on remote host.
+        Determine directory structure under local_path and replicate on remote host.
 
-        :param str localpath:
-        :param str remotepath:
+        :param str local_path:
+        :param str remote_path:
         :return: Nothing
         """
         try:
-            if localpath is None:
-                localpath = self.staging
+            if local_path is None:
+                local_path = self.local_path
 
-            # sanitize localpath
-            localpath = re.sub(r'(/?\.?\\){1,2}', '/', localpath)
+            # sanitize local_path
+            local_path = re.sub(r'(/?\.?\\){1,2}', '/', local_path)
 
-            if remotepath is None:
-                remotepath = self.remotepath
+            if remote_path is None:
+                remote_path = self.remote_path
 
-            # sanitize remotepath
-            remotepath = re.sub(r'(/?\.?\\){1,2}', '/', remotepath)
+            # sanitize remote_path
+            remote_path = re.sub(r'(/?\.?\\){1,2}', '/', remote_path)
 
-            self.logger.info(f".setup_remote_folders (source: {localpath}, target: {remotepath})")
+            self.logger.info(f".setup_remote_folders (local_path: {local_path}, remote_path: {remote_path})")
 
             with paramiko.SSHClient() as ssh:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
                 with ssh.open_sftp() as sftp:
                     # determine local directory structure, establish same structure on remote host
-                    for dirpath, dirnames, filenames in os.walk(top=localpath):
-                        dirpath = re.sub(r'(/?\.?\\){1,2}', '/', dirpath).replace(localpath, remotepath)
+                    for root, dirs, files in os.walk(top=local_path):
+                        root = re.sub(r'(/?\.?\\){1,2}', '/', root).replace(local_path, remote_path)
                         try:
-                            sftp.mkdir(dirpath, mode=16877)
+                            sftp.mkdir(root, mode=16877)
                         except OSError as err:
                             self.logger.error(err)
                             pass
@@ -205,106 +194,123 @@ class SFTPClient:
             self.logger.error(err)
 
 
-    def put_file(self, localpath: str, remotepath: str) -> None:
+    def put_file(self, local_path: str, remote_path: str) -> None:
         """Send a file to a remotehost using SFTP and SSH.
 
         Args:
-            localpath (str): full path to local file
-            remotepath (str): relative path to remotefile
+            local_path (str): full path to local file
+            remote_path (str): relative path to remotefile
         """
         try:
-            if os.path.exists(localpath):
-                remotepath = re.sub(r'(/?\.?\\){1,2}', '/', remotepath)
-                msg = f".put {localpath} > {remotepath}"
+            if os.path.exists(local_path):
+                remote_path = re.sub(r'(/?\.?\\){1,2}', '/', remote_path)
+                msg = f".put {local_path} > {remote_path}"
                 with paramiko.SSHClient() as ssh:
                     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                     ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
                     with ssh.open_sftp() as sftp:
-                        res = sftp.put(localpath=localpath, remotepath=os.path.join(remotepath, os.path.basename(localpath)), confirm=True)
+                        attr = sftp.put(localpath=local_path,
+                                        remote_path=os.path.join(remote_path, os.path.basename(local_path)),
+                                        confirm=True)
                         sftp.close()
                     self.logger.info(msg)
             else:
-                raise ValueError("localpath does not exist.")
+                raise ValueError("local_path does not exist.")
         except Exception as err:
             self.logger.error(err)
 
 
-    def remove_remote_file(self, remotepath: str) -> None:
+    def remove_remote_item(self, remote_path: str) -> None:
         """Remove a file or (empty) directory on a remotehost using SFTP and SSH.
 
         Args:
-            remotepath (str): relative path to remote item
+            remote_path (str): relative path to remote item
         """
         try:
-            if self.remote_item_exists(remoteitem=remotepath):
-                msg = f".remove_file {remotepath}"
+            if self.remote_item_exists(remoteitem=remote_path):
+                msg = f".remove_file {remote_path}"
                 with paramiko.SSHClient() as ssh:
                     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                     ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
                     with ssh.open_sftp() as sftp:
-                        res = sftp.remove(remotepath)
+                        res = sftp.remove(remote_path)
                         sftp.close()
                     self.logger.info(msg)
             else:
-                raise ValueError("remotepath does not exist.")
+                raise ValueError("remote_path does not exist.")
         except Exception as err:
             self.logger.error(err)
 
 
-    def transfer_all_files(self, localpath=None, remotepath=None) -> None:
+    def transfer_files(self, local_path=None, remote_path=None, remove_on_success: bool=True) -> None:
         """
-        Recursively transfer (move) all files from localpath to remotepath. Note: At present, parent elements of remote path must already exist.
+        Transfer (move) all files from local_path to remote_path.
 
-        :param str localpath:
-        :param str remotepath:
+        :param str local_path:
+        :param str remote_path:
         :param bln preserve_mtime: see pysftp documentation
         :return: Nothing
         """
         try:
-            if localpath is None:
-                localpath = self.staging
+            if local_path is None:
+                local_path = self.local_path
 
-            # sanitize localpath
-            # localpath = re.sub(r'(/?\.?\\){1,2}', '/', localpath)
+            # sanitize local_path
+            # local_path = re.sub(r'(/?\.?\\){1,2}', '/', local_path)
 
-            if remotepath is None:
-                remotepath = '.'
+            if remote_path is None:
+                remote_path = self.remote_path
 
-            self.logger.info(f".transfer_all_files (source: {localpath}, target: {self.host}/{self.usr}/{remotepath})")
+            self.logger.info(f".transfer_all_files (local path: {local_path}, remote path: {remote_path})")
 
-            localitem = None
-            remoteitem = None
+            # localitem = None
+            # remoteitem = None
             with paramiko.SSHClient() as ssh:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
                 with ssh.open_sftp() as sftp:
                     # walk local directory structure, put file to remote location
-                    for dirpath, dirnames, filenames in os.walk(top=localpath):
-                        for filename in filenames:
-                            localitem = os.path.join(dirpath, filename)
-                            remoteitem = os.path.join(dirpath.replace(localpath, remotepath), filename)
-                            remoteitem = re.sub(r'(\\){1,2}', '/', remoteitem)
-                            msg = f".put {localitem.replace(localpath, '')} > {remoteitem}"
-                            res = sftp.put(localpath=localitem, remotepath=remoteitem, confirm=True)
+                    for root, dirs, files in os.walk(top=local_path):
+                        self.setup_remote_folders(local_path=local_path, remote_path=remote_path)
+                        for src in files:
+                            dst = os.path.join(remote_path, src)
+                            dst = re.sub(r'(\\){1,2}', '/', dst)
+                            src = os.path.join(root, src)
+                            msg = f".put {src} > {dst}"
+                            attr = sftp.put(localpath=src, remotepath=dst, confirm=True)
                             self.logger.info(msg)
 
-                            # remove local file from staging if it exists on remote host.
-                            try:
-                                localsize = os.stat(localitem).st_size
-                                remotesize = res.st_size
-                                self.logger.debug("localitem size: %s, remoteitem size: %s" % (localsize, remotesize))
-                                if remotesize == localsize:
-                                    os.remove(localitem)
-                            except Exception as err:
-                                msg = f"{remoteitem} not found on remote host, will try again later."
-                                self.logger.info(colorama.Fore.RED + msg)
-                                self.logger.warning(msg)
+                            if remove_on_success:
+                                # remove local file from local source if it exists on remote host.
+                                src_size = os.stat(src).st_size
+                                dst_size = attr.st_size
+                                if dst_size == src_size:
+                                    os.remove(src)
+                                else:
+                                    self.logger.warning(f"src: {src_size}, dst: {dst_size} differ in size. Did not remove {src}.")
 
         except Exception as err:
-            msg = f"{localitem} > {remoteitem} failed with {err}."
-            self.logger.info(colorama.Fore.RED + msg)
             self.logger.error(err)
 
+
+    def setup_transfer_schedule(self, local_path: str, remote_path: str, remove_on_success: bool=True, reporting_interval: int=24):
+        try:
+            local_path = re.sub(r'(/?\.?\\){1,2}', '/', local_path)
+            remote_path = re.sub(r'(/?\.?\\){1,2}', '/', remote_path)
+            
+            if reporting_interval==24:
+                schedule.every(1).days.at('00:01:00').do(self.transfer_files, local_path, remote_path, remove_on_success)
+            elif reporting_interval < 24:
+                hours = [f"{reporting_interval*n:02}:01" for n in range(23) if reporting_interval*n <= 23]
+                for hr in hours:
+                    schedule.every().day.at(hr).do(self.transfer_files, local_path, remote_path, remove_on_success)
+            else:
+                raise ValueError('reporting_interval must be within 1 ... 24 (hours).')
+            
+            self.logger.info(schedule.get_jobs())
+
+        except Exception as err:
+            self.schedule_logger.error(err)
 
 if __name__ == "__main__":
     pass

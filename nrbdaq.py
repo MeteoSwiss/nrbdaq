@@ -12,32 +12,36 @@ def main():
     config = load_config(config_file='nrbdaq.yaml')
 
     # setup logging
-    logger = setup_logging(os.path.join(os.path.expanduser(config['root']), config['logging']['file']))
-
-    # instantiate instrument(s)
-    ae31 = AE31(config=config)
-
-    # setup AVO data download for Nairobi
-    url = config['AVO']['urls']['url_nairobi']
-    file_path=os.path.join(os.path.expanduser(config['root']), config['AVO']['data'])
-    staging=os.path.join(os.path.expanduser(config['root']), config['AVO']['staging'])
-    download_interval = config['AVO']['download_interval']
-    if download_interval == 'daily':
-        schedule.every(1).days.at('00:00').do(avo.download_multiple, 
-                                         urls={'url_nairobi': url}, 
-                                         file_path=file_path, 
-                                         staging=staging)
-    else:
-        schedule.every(config['AVO']['download_interval']).hours.at(':00').do(avo.download_multiple, 
-                                         urls={'url_nairobi': url}, 
-                                         file_path=file_path, 
-                                         staging=staging)
+    logfile = os.path.join(os.path.expanduser(config['root']), config['logging']['file'])
+    logger = setup_logging(file=logfile)
 
     # setup sftp client
     sftp = SFTPClient(config=config)
 
+    # setup AE31 data acquisition and data transfer
+    ae31 = AE31(config=config)
+    remote_path = os.path.join(sftp.remote_path, ae31.remote_path)
+    sftp.setup_transfer_schedule(local_path=ae31.staging_path, 
+                                 remote_path=ae31.remote_path, 
+                                 reporting_interval=ae31.reporting_interval)  
+
+    # setup Nairobi AVO data download, staging and transfer
+    local_path = os.path.join(os.path.expanduser(config['root']), config['AVO']['data'])
+    staging = os.path.join(os.path.expanduser(config['root']), config['AVO']['staging'])
+    remote_path = os.path.join(sftp.remote_path, config['AVO']['remote_path'])
+    download_interval = config['AVO']['download_interval']
+    hours = [f"{download_interval*n:02}:00" for n in range(23) if download_interval*n <= 23]
+    for hr in hours:
+        schedule.every().day.at(hr).do(avo.download_multiple,
+                                       urls={'url_nairobi': config['AVO']['urls']['url_nairobi']}, 
+                                       file_path=local_path, 
+                                       staging=staging)
+    sftp.setup_transfer_schedule(local_path=local_path, 
+                                 remote_path=remote_path, 
+                                 reporting_interval=download_interval)  
+
     # start data acquisition, staging and transfer
-    logger.info("Start NRBDAQ")
+    logger.info("== Start NRBDAQ =============")
     while True:
         schedule.run_pending()
         time.sleep(1)

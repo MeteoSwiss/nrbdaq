@@ -3,35 +3,9 @@ import colorama
 import logging
 from datetime import datetime, timedelta
 import polars as pl
-# from typing import Optional
-# from nrbdaq.utils.utils import setup_logger, load_config
 import schedule
 import shutil
 import serial
-
-# 14.9.3  Data File Format - Seven wavelength Instruments 
-# The AE-3 series seven wavelength Aethalometers measure optical 
-# absorbance at seven optical wavelengths from 370 to 950 nm.  The data 
-# are reported on a single line written to disk as follows: 
-# • Expanded Data Format:  “date”, “time”, UV [370 nm] result,  
-# Blue [470 nm] result, Green [520 nm] result, Yellow [590 nm] 
-# result, Red [660 nm] result, IR1 [880 nm, “standard BC”] result, 
-# IR2 [950 nm] result,  air flow (LPM), bypass fraction, 
-# and then the following columns of data repeated for the seven 
-# measurement wavelengths: 
-# sensing zero signal, sensing beam signal, reference zero signal, 
-# reference beam signal, optical attenuation, air flow (LPM), bypass 
-# fraction.    
-# The ‘air flow’ and ‘bypass fraction’ columns are repeated to allow for 
-# easy visual identification of the separation between the seven sets of 
-# data columns. 
-# A typical line in the data file might look like: 
-# "24-jul-00","16:40", 610 , 604 , 605 , 612 , 617 , 611 , 641 , 3.131 ,-
-# .9812 ,-.9814 , 1.1881 , 1.8384 , 1 , 6.4 , 2.704 ,-.9812 ,-.9814 , 4.2483 
-# , 2.7373 , 1 , 6.4 , 2.45 ,-.9812 ,-.9814 , 2.1716 , 1.9438 , 1 , 6.4 , 2.232 
-# ,-.9812 ,-.9814 , 2.854 , 3.5259 , 1 , 6.4 , 1.957 ,-.9812 ,-.9814 , 3.3428 
-# , 2.596 , 1 , 6.4 , 1.452 ,-.9812 ,-.9814 , 4.6719 , 3.3935 , 1 , 6.4 , 1.396 
-# ,-.9812 ,-.9814 , 2.705 , 2.438 , 1 , 6.4  
 
 class AE31:
     def __init__(self, config: dict):
@@ -49,53 +23,56 @@ class AE31:
             self.logger.info("Initialize AE31")
             
             # configure serial port
-            self.serial_port = config['AE31']['serial_port']
-            self.serial_timeout = config['AE31']['serial_timeout']
+            self._serial_port = config['AE31']['serial_port']
+            self._serial_timeout = config['AE31']['serial_timeout']
             
-            _root = os.path.expanduser(config['root'])
+            root = os.path.expanduser(config['root'])
 
-            # configure data storage and reporting interval (which determines in what chunks data are persisted)
-            self.data_path = os.path.join(_root, config['AE31']['data'])
-            os.makedirs(self.data_path, exist_ok=True)
+            # configure data collection and saving
+            self._sampling_interval = config['AE31']['sampling_interval']
             self.reporting_interval = config['AE31']['reporting_interval']
-            
-            # configure data archive
-            self.archive_path = os.path.join(_root, config['AE31']['archive'])
-            os.makedirs(self.archive_path, exist_ok=True)
-            
-            # configure data transfer
-            self.staging_path = os.path.join(_root, config['AE31']['staging'])
+            if self.reporting_interval not in range(1, 25):
+                raise ValueError('reporting_interval must be in the range of 1..24 hours.')
+
+            self.data_path = os.path.join(root, config['AE31']['data'])
+            os.makedirs(self.data_path, exist_ok=True)
+            schedule.every(int(self._sampling_interval)).minutes.at(':00').do(self.serial_read_data)
+            schedule.every(int(self._sampling_interval)).minutes.at(':01').do(self._save_data)
+                     
+            # configure staging
+            self.staging_path = os.path.join(root, config['AE31']['staging'])
             os.makedirs(self.staging_path, exist_ok=True)
+            hours = [f"{self.reporting_interval*n:02}:02" for n in range(24) if self.reporting_interval*n < 24]
+            for hr in hours:
+                schedule.every().day.at(hr).do(self._stage_data)
 
-            self.host = config['sftp']['host']
-            self.usr = config['sftp']['usr']
-            self.key = os.path.expanduser(config['sftp']['key'])
-            
+            # configure archive
+            self.archive_path = os.path.join(root, config['AE31']['archive'])
+            os.makedirs(self.archive_path, exist_ok=True)
+
+            # configure remote transfer
+            self.remote_path = config['AE31']['remote_path']
+
             # initialize data response and datetime stamp           
-            self.data = str()
-            self.dtm = None
-
-            # configure data collection, saving and staging
-            self.sampling_interval = config['AE31']['sampling_interval']
-            schedule.every(int(self.sampling_interval)).minutes.at(':00').do(self.serial_read_data)
-            schedule.every(int(self.sampling_interval)).minutes.at(':01').do(self.save_data)
-            if self.reporting_interval=='daily':
-                schedule.every(1).days.at('00:01:00').do(self.stage_data)
-            elif self.reporting_interval=='hourly':
-                schedule.every(1).hours.at('00:01').do(self.stage_data)
-            else:
-                raise ValueError('reporting_interval must be one of daily|hourly.')
+            self._data = str()
+            self._dtm = None
         except Exception as err:
             self.logger.error(err)
             pass
 
     
-    def serial_read_data(self) -> None:
+    def serial_read_data(self) -> str:
+        """
+        Read data waiting at serial port. Opens the port, assigns lines read to self._data
+
+        Returns:
+            str: lines read from serial port, decoded from ascii
+        """
         try:
-            with serial.Serial(self.serial_port, 9600, 8, 'N', 1, int(self.serial_timeout)) as ser:
-                self.dtm = datetime.now().isoformat(timespec='seconds')
-                self.data = ser.readline().decode('ascii').strip()
-                self.logger.info(f"{self.data[:80]} ..."),
+            with serial.Serial(self._serial_port, 9600, 8, 'N', 1, int(self._serial_timeout)) as ser:
+                self._dtm = datetime.now().isoformat(timespec='seconds')
+                self._data = ser.readline().decode('ascii').strip()
+                self.logger.info(f"{self._data[:80]} ..."),
             return
 
         except serial.SerialException as err:
@@ -105,15 +82,17 @@ class AE31:
             self.logger.error(err)
 
 
-    def save_data(self):
+    def _save_data(self):
+        """
+        Saves data to a .csv file at self.data_path. 
+        Filenames have the form 'AE31_{timestamp}.csv', where timestamp depends on self.reporting_interval.
+        """
         try:
-            if self.data:
-                if self.reporting_interval=='daily':
+            if self._data:
+                if self.reporting_interval==24:
                     timestamp = datetime.now().strftime('%Y%m%d')
-                elif self.reporting_interval=='hourly':
-                    timestamp = datetime.now().strftime('%Y%m%d%H')
                 else:
-                    raise ValueError('reporting_interval must be one of daily|hourly.')
+                    timestamp = datetime.now().strftime('%Y%m%d%H')
                 file = os.path.join(self.data_path, f"AE31_{timestamp}.csv")
                 if os.path.exists(file):
                     mode = 'a'
@@ -123,20 +102,21 @@ class AE31:
                 
                 # open file and write to it
                 with open(file=file, mode=mode) as fh:
-                    fh.write(f"{self.dtm}, {self.data}\n")
+                    fh.write(f"{self._dtm}, {self._data}\n")
 
         except Exception as err:
             self.logger.error(err)
 
 
-    def stage_data(self):
-        """Copy final data file to the staging area. Establish the timestamp of the previous (now complete) file, then copy it to the staging area."""
-        if self.reporting_interval=='daily':
+    def _stage_data(self):
+        """
+        Copy final data file to the staging area. 
+        Establish the timestamp of the previous (now complete) file, then copy it to the staging area.
+        """
+        if self.reporting_interval==24:
             timestamp = (datetime.now() - timedelta(days=1)).strftime('%Y%m%d')
-        elif self.reporting_interval=='hourly':
-            timestamp = (datetime.now() - timedelta(hours=1)).strftime('%Y%m%d%H')
         else:
-            raise ValueError('reporting_interval must be one of daily|hourly.')
+            timestamp = (datetime.now() - timedelta(hours=self.reporting_interval)).strftime('%Y%m%d%H')
         file = f"AE31_{timestamp}.csv"
 
         try:
@@ -147,13 +127,44 @@ class AE31:
             self.logger.error(err)
 
 
-    def compile_data(self, remove_duplicates: bool=True) -> pl.DataFrame:
+    def compile_data(self, remove_duplicates: bool=True, archive: bool=True) -> pl.DataFrame:
         """Compile data files and save as .parquet
+
+            14.9.3  Data File Format - Seven wavelength Instruments 
+            The AE-3 series seven wavelength Aethalometers measure optical absorbance at seven optical wavelengths 
+            from 370 to 950 nm.  The data are reported on a single line written to disk as follows: 
+            Expanded Data Format:  “date”, “time”, UV [370 nm] result, Blue [470 nm] result, Green [520 nm] result, 
+            Yellow [590 nm] result, Red [660 nm] result, IR1 [880 nm, “standard BC”] result, IR2 [950 nm] result,  
+            air flow (LPM), bypass fraction, and then the following columns of data repeated for the seven 
+            measurement wavelengths: 
+            sensing zero signal, sensing beam signal, reference zero signal, reference beam signal, optical attenuation, 
+            air flow (LPM), bypass fraction.    
+            The ‘air flow’ and ‘bypass fraction’ columns are repeated to allow for easy visual identification of the 
+            separation between the seven sets of data columns. 
+            A typical line in the data file might look like: 
+            "24-jul-00","16:40", 610 , 604 , 605 , 612 , 617 , 611 , 641 , 3.131 
+            ,-.9812 ,-.9814 , 1.1881 , 1.8384 , 1 , 6.4 , 2.704 
+            ,-.9812 ,-.9814 , 4.2483 , 2.7373 , 1 , 6.4 , 2.45 
+            ,-.9812 ,-.9814 , 2.1716 , 1.9438 , 1 , 6.4 , 2.232 
+            ,-.9812 ,-.9814 , 2.854 , 3.5259 , 1 , 6.4 , 1.957 
+            ,-.9812 ,-.9814 , 3.3428 , 2.596 , 1 , 6.4 , 1.452 
+            ,-.9812 ,-.9814 , 4.6719 , 3.3935 , 1 , 6.4 , 1.396 
+            ,-.9812 ,-.9814 , 2.705 , 2.438 , 1 , 6.4  
 
         Returns:
             pl.DataFrame: compiled data sets
         """
         df = pl.DataFrame()
+
+        cols = ["dtm","unknown","date","time","UV370","B470","G520","Y590","R660","IR880","IR950","flow",]# "bypass"]
+        cols += ["sens_zero_370","sens_beam_370","ref_zero_370","ref_beam_370","att_370", "unknown_370",]# "bypass_370"] 
+        cols += ["sens_zero_470","sens_beam_470","ref_zero_470","ref_beam_470","att_470", "unknown_470",]# "bypass_470"] 
+        cols += ["sens_zero_520","sens_beam_520","ref_zero_520","ref_beam_520","att_520", "unknown_520",]# "bypass_520"] 
+        cols += ["sens_zero_590","sens_beam_590","ref_zero_590","ref_beam_590","att_590", "unknown_590",]# "bypass_590"] 
+        cols += ["sens_zero_660","sens_beam_660","ref_zero_660","ref_beam_660","att_660", "unknown_660",]# "bypass_660"] 
+        cols += ["sens_zero_880","sens_beam_880","ref_zero_880","ref_beam_880","att_880", "unknown_880",]# "bypass_880"] 
+        cols += ["sens_zero_950","sens_beam_950","ref_zero_950","ref_beam_950","att_950", "unknown_950",]# "bypass_950"] 
+        print(cols)
 
         for root, dirs, files in os.walk(self.data_path):
             for file in files:
@@ -168,8 +179,19 @@ class AE31:
         if remove_duplicates:
             df = df.unique()
         
-        df.sort()
-        df.write_parquet(os.path.join(self.archive_path, 'ae31_nrb.parquet'))
+        df.columns = cols
+        # df = df.with_columns(pl.col('date').str.to_date("%d-%b-%Y"),
+        #                      pl.col('time').str.to_time("%H:%M"))
+        df = df.with_columns(pl.col("dtm").str.to_datetime(),
+                             pl.col("date").str.to_date("%d-%b-%Y").dt.combine(pl.col("time").str.to_time("%H:%M")).alias("dtm_ae31"))
+
+        df.sort(by=['dtm_ae31'])
+
+        if archive:
+            df.write_parquet(os.path.join(self.archive_path, 'ae31_nrb.parquet'))
+            df.write_csv(os.path.join(self.archive_path, 'ae31_nrb.csv'))
+
+        return df
 
 
     def plot_data(self, filepath: str, save: bool=True):
