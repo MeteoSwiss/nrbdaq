@@ -42,7 +42,7 @@ class AE31:
             # configure staging
             self.staging_path = os.path.join(root, config['AE31']['staging'])
             os.makedirs(self.staging_path, exist_ok=True)
-            hours = [f"{self.reporting_interval*n:02}:02" for n in range(24) if self.reporting_interval*n < 24]
+            hours = [f"{self.reporting_interval*n:02}:00:10" for n in range(24) if self.reporting_interval*n < 24]
             for hr in hours:
                 schedule.every().day.at(hr).do(self._stage_data)
 
