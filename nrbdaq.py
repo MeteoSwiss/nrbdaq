@@ -22,7 +22,7 @@ def main():
     ae31 = AE31(config=config)
     remote_path = os.path.join(sftp.remote_path, ae31.remote_path)
     sftp.setup_transfer_schedule(local_path=ae31.staging_path, 
-                                 remote_path=ae31.remote_path, 
+                                 remote_path=remote_path, 
                                  reporting_interval=ae31.reporting_interval)  
 
     # setup Nairobi AVO data download, staging and transfer
@@ -42,6 +42,8 @@ def main():
 
     # start data acquisition, staging and transfer
     logger.info("== Start NRBDAQ =============")
+    logger.info(schedule.get_jobs())
+
     while True:
         schedule.run_pending()
         time.sleep(1)

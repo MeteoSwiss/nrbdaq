@@ -307,8 +307,6 @@ class SFTPClient:
             else:
                 raise ValueError('reporting_interval must be within 1 ... 24 (hours).')
             
-            self.logger.info(schedule.get_jobs())
-
         except Exception as err:
             self.schedule_logger.error(err)
 
