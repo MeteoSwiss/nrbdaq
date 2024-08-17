@@ -270,8 +270,9 @@ class SFTPClient:
                 ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
                 with ssh.open_sftp() as sftp:
                     # walk local directory structure, put file to remote location
-                    for root, dirs, files in os.walk(top=local_path):
+                    if not self.remote_item_exists(remote_path):
                         self.setup_remote_folders(local_path=local_path, remote_path=remote_path)
+                    for root, dirs, files in os.walk(top=local_path):
                         for src in files:
                             dst = os.path.join(remote_path, src)
                             dst = re.sub(r'(\\){1,2}', '/', dst)

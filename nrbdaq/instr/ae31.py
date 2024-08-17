@@ -118,11 +118,12 @@ class AE31:
         else:
             timestamp = (datetime.now() - timedelta(hours=self.reporting_interval)).strftime('%Y%m%d%H')
         file = f"AE31_{timestamp}.csv"
-
+        self.logger.debug(f"file to stage: {file}")
         try:
             if os.path.exists(file):
-                shutil.copyfile(src=os.path.join(self.data_path, file), 
+                dst = shutil.copyfile(src=os.path.join(self.data_path, file), 
                                 dst=os.path.join(self.staging_path, file))
+                self.logger.debug(f"file staged: {dst}")
         except Exception as err:
             self.logger.error(err)
 
