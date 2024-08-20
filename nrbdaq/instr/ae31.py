@@ -42,9 +42,12 @@ class AE31:
             # configure staging
             self.staging_path = os.path.join(root, config['AE31']['staging'])
             os.makedirs(self.staging_path, exist_ok=True)
-            hours = [f"{self.reporting_interval*n:02}:00:10" for n in range(24) if self.reporting_interval*n < 24]
-            for hr in hours:
-                schedule.every().day.at(hr).do(self._stage_data)
+            if self.reporting_interval==24:
+                    schedule.every(1).day.at('00:00:10').do(self._stage_data)
+            else:
+                hours = [f"{self.reporting_interval*n:02}:00:10" for n in range(24) if self.reporting_interval*n < 24]
+                for hr in hours:
+                    schedule.every().day.at(hr).do(self._stage_data)
 
             # configure archive
             self.archive_path = os.path.join(root, config['AE31']['archive'])
@@ -190,7 +193,7 @@ class AE31:
 
         if archive:
             df.write_parquet(os.path.join(self.archive_path, 'ae31_nrb.parquet'))
-            df.write_csv(os.path.join(self.archive_path, 'ae31_nrb.csv'))
+            # df.write_csv(os.path.join(self.archive_path, 'ae31_nrb.csv'))
 
         return df
 

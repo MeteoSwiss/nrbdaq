@@ -55,7 +55,9 @@ def flatten_data(data: dict, parent_key='', sep='_') -> dict:
 
 def data_to_dfs(data: dict, file_path: str=str(),
                 append: bool=True, remove_duplicates: bool=True, staging: str=str()) -> tuple[str, dict]:
-    """Saves a flattened dictionary as polars DataFrame
+    """
+    Saves a flattened dictionary as polars DataFrame. 
+    A column dtm (pl.Datetime) is added. Numerical values are all cast to pl.Float32. Otherwise, the original format is preserved.
 
     Args:
         data (dict): flattened dict of AVO data
@@ -115,6 +117,58 @@ def download_multiple(urls: dict, file_path: str, staging: str=str()):
         dfs = data_to_dfs(data=data, file_path=file_path, staging=staging)
         return dfs
 
-def compile_data(source: str, stations: list[str], remove_duplicates: bool=True, archive: bool=True):
-    print("Not yet implemented.")
+def compile_data(stations: list[str], source: str, remove_duplicates: bool=True, target:str=str(), archive: bool=True) -> dict:
+    _ = dict(zip(keys, [pl.DataFrame(schema=dict([('ts', pl.String),
+                                                   ('co2', pl.Float32),
+                                                   ('pm1', pl.Float32),
+                                                   ('pr', pl.Float32),
+                                                   ('hm', pl.Float32),
+                                                   ('tp', pl.Float32),
+                                                   ('pm25_aqius', pl.Float32),
+                                                   ('pm25_aqicn', pl.Float32),
+                                                   ('pm25_conc', pl.Float32),
+                                                   ('pm10_aqius', pl.Float32),
+                                                   ('pm10_aqicn', pl.Float32),
+                                                   ('pm10_conc', pl.Float32),
+                                                   ('dtm', pl.Datetime(time_unit='us', time_zone='UTC'))]),
+                                                   )] * 4))
+
+    dfs = dict([(station, _) for station in stations])
+
+    for root, dirs, files in os.walk(source):
+        for file in files:
+            df = pl.read_parquet(os.path.join(root, file))
+            df = df.cast({pl.Int64: pl.Float32, pl.Float64: pl.Float32})
+
+            # Some files have ts converted to Datetime already, with or without a dtm column, so we need to make sure these files can be imported.
+            if df['ts'].dtype==pl.Datetime:
+                df = df.rename({'ts': 'dtm'})
+            elif ('dtm' in df.columns and all(df['dtm'].is_null())) or ('dtm' not in df.columns):
+                df = df.with_columns(pl.col("ts").str.to_datetime().alias('dtm'))
+
+            basename_parts = file.split('.')[0].split('_')
             
+            # Handle the case where an underscore is present as the last character before the extension
+            if '' in basename_parts:
+                basename_parts.remove('') 
+            
+            n = len(basename_parts)
+            station = "_".join(basename_parts[:(n-2)])
+            data_type = basename_parts[n-1].split('-')[0]
+            
+            try:
+                if remove_duplicates:
+                    dfs[station][data_type] = pl.concat([dfs[station][data_type], df], how = 'diagonal').unique()
+                else:
+                    dfs[station][data_type] = pl.concat([dfs[station][data_type], df], how = 'diagonal')
+                print(f"Appended data from '{file}'.")
+            except Exception as err:
+                print(f"Failed to append data from '{file}'. Error: {err}")
+                pass
+
+        if target:
+            for station, data in dfs.items():
+                for key, df in data.items():
+                    data[key].write_parquet(os.path.join(target, f"{station}_{key}_avo_compiled.parquet"))
+
+    return dfs
