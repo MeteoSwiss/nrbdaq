@@ -1,5 +1,6 @@
-root: ~/git/nrbdaq/nrbdaq
+# root: ~/git/nrbdaq/nrbdaq
 # root: /product_data/data/pay/Kenya/git/nrbdaq/nrbdaq
+root: ~/Documents/nrbdaq
 
 AE31:
 # NB: Configure AE31 to use the default settings (9600, 8, 1, N).
@@ -44,10 +45,10 @@ logging:
 sftp:
 # NB: specify local_source relative to root
   host: sftp.meteoswiss.ch
-  usr: gaw_mkn
+  usr: gaw_kenya
   key: ~/.ssh/private-open-ssh-4096-mkn.ppk
   local_path: staging
-  remote_path: '.'
+  remote_path: './nrb'
 
 # future
 # [dxs]

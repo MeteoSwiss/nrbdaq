@@ -122,11 +122,11 @@ class SFTPClient:
             self.logger.error(err)
 
 
-    def remote_item_exists(self, remote_item: str) -> Boolean:
+    def remote_item_exists(self, remote_path: str) -> Boolean:
         """Check on remote server if an item exists. Assume this indicates successful transfer.
 
         Args:
-            remoteitem (str): path to remote item
+            remote_path (str): path to remote item
 
         Returns:
             Boolean: True if item exists, False otherwise.
@@ -136,7 +136,7 @@ class SFTPClient:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
                 with ssh.open_sftp() as sftp:
-                    return True if sftp.stat(remote_item).st_size > 0 else False
+                    return True if sftp.stat(remote_path).st_size > 0 else False
         except Exception as err:
             self.logger.error(err)
 
@@ -194,12 +194,12 @@ class SFTPClient:
             self.logger.error(err)
 
 
-    def put_file(self, local_path: str, remote_path: str) -> None:
+    def put_file(self, local_path: str, remote_path: str):
         """Send a file to a remotehost using SFTP and SSH.
 
         Args:
             local_path (str): full path to local file
-            remote_path (str): relative path to remotefile
+            remote_path (str): relative path to remote directory
         """
         try:
             if os.path.exists(local_path):
@@ -210,10 +210,11 @@ class SFTPClient:
                     ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
                     with ssh.open_sftp() as sftp:
                         attr = sftp.put(localpath=local_path,
-                                        remote_path=os.path.join(remote_path, os.path.basename(local_path)),
+                                        remotepath=os.path.join(remote_path, os.path.basename(local_path)),
                                         confirm=True)
                         sftp.close()
                     self.logger.info(msg)
+                return attr
             else:
                 raise ValueError("local_path does not exist.")
         except Exception as err:
@@ -243,13 +244,12 @@ class SFTPClient:
 
 
     def transfer_files(self, local_path=None, remote_path=None, remove_on_success: bool=True) -> None:
-        """
-        Transfer (move) all files from local_path to remote_path.
+        """Transfer (move) all files from local_path to remote_path.
 
-        :param str local_path:
-        :param str remote_path:
-        :param bln preserve_mtime: see pysftp documentation
-        :return: Nothing
+        Args:
+            local_path (_type_, optional): full path to local directory location. Defaults to None.
+            remote_path (_type_, optional): relative path to remote directory location. Defaults to None.
+            remove_on_success (bool, optional): Remove successfully transfered files from local_path?. Defaults to True.
         """
         try:
             if local_path is None:
@@ -274,10 +274,13 @@ class SFTPClient:
                         self.setup_remote_folders(local_path=local_path, remote_path=remote_path)
                     for root, dirs, files in os.walk(top=local_path):
                         for src in files:
+                            # create full remote path, including file name
                             dst = os.path.join(remote_path, src)
                             dst = re.sub(r'(\\){1,2}', '/', dst)
+                            # create full local path, including file name
                             src = os.path.join(root, src)
                             msg = f".put {src} > {dst}"
+                            # send file to remote
                             attr = sftp.put(localpath=src, remotepath=dst, confirm=True)
                             self.logger.info(msg)
 

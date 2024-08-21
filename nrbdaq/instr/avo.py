@@ -111,11 +111,15 @@ def data_to_dfs(data: dict, file_path: str=str(),
 
 
 def download_multiple(urls: dict, file_path: str, staging: str=str()):
+    all = list()
     for key, url in urls.items():
         print(f"retrieving from {key}")
         data = download_data(url=url)
         dfs = data_to_dfs(data=data, file_path=file_path, staging=staging)
-        return dfs
+        if dfs:
+            all.append(dfs)
+    return all
+
 
 def compile_data(stations: list[str], source: str, remove_duplicates: bool=True, target:str=str(), archive: bool=True) -> dict:
     _ = dict(zip(keys, [pl.DataFrame(schema=dict([('ts', pl.String),

@@ -18,19 +18,26 @@ class TestSFTP(unittest.TestCase):
     def test_transfer_single_file(self):
         sftp = SFTPClient(config=config)
 
-        testfile = 'hello_world.txt'
-        localpath = 'nrbdaq/data/tests'
-        remotepath = '.'
-       
-        if sftp.remote_item_exists(remotepath):
-            sftp.remove_remote_file(remotepath)            
+        # setup
+        file_path = 'nrbdaq/tests/hello_world.txt'
+        file_content = 'Hello, world!'
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, 'w') as fh:
+            fh.write(file_content)
+            fh.close()
 
-        sftp.put_file(localpath=os.path.join(localpath, testfile), remotepath=remotepath)
+        remotepath = sftp.remote_path
+        remote_path = os.path.join(remotepath, os.path.basename(file_path))
+        if sftp.remote_item_exists(remote_path=remote_path):
+            sftp.remove_remote_item(remote_path=remote_path)            
 
-        self.assertEqual(sftp.remote_item_exists(os.path.join(remotepath, testfile)), True)
+        attr = sftp.put_file(local_path=file_path, remote_path=remotepath)
+
+        self.assertEqual(sftp.remote_item_exists(remote_path=remote_path), True)
 
         # clean up
-        sftp.remove_remote_file(os.path.join(remotepath, testfile))
+        sftp.remove_remote_item(remote_path=remote_path)
+        os.remove(path=file_path)
 
 
 class TestAVO(unittest.TestCase):

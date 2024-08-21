@@ -184,16 +184,13 @@ class AE31:
             df = df.unique()
         
         df.columns = cols
-        # df = df.with_columns(pl.col('date').str.to_date("%d-%b-%Y"),
-        #                      pl.col('time').str.to_time("%H:%M"))
-        df = df.with_columns(pl.col("dtm").str.to_datetime(),
+        df = df.with_columns(pl.col("dtm").str.to_datetime(time_unit='us', time_zone='UTC'),
                              pl.col("date").str.to_date("%d-%b-%Y").dt.combine(pl.col("time").str.to_time("%H:%M")).alias("dtm_ae31"))
 
         df.sort(by=['dtm_ae31'])
 
         if archive:
             df.write_parquet(os.path.join(self.archive_path, 'ae31_nrb.parquet'))
-            # df.write_csv(os.path.join(self.archive_path, 'ae31_nrb.csv'))
 
         return df
 
