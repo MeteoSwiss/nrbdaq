@@ -26,17 +26,17 @@ def main():
                                  reporting_interval=ae31.reporting_interval)  
 
     # setup Nairobi AVO data download, staging and transfer
-    local_path = os.path.join(os.path.expanduser(config['root']), config['AVO']['data'])
-    staging = os.path.join(os.path.expanduser(config['root']), config['AVO']['staging'])
+    data_path = os.path.join(os.path.expanduser(config['root']), config['AVO']['data'])
+    staging_path = os.path.join(os.path.expanduser(config['root']), config['AVO']['staging'])
     remote_path = os.path.join(sftp.remote_path, config['AVO']['remote_path'])
     download_interval = config['AVO']['download_interval']
     hours = [f"{download_interval*n:02}:00" for n in range(23) if download_interval*n <= 23]
     for hr in hours:
         schedule.every().day.at(hr).do(avo.download_multiple,
                                        urls={'url_nairobi': config['AVO']['urls']['url_nairobi']}, 
-                                       file_path=local_path, 
-                                       staging=staging)
-    sftp.setup_transfer_schedule(local_path=local_path, 
+                                       file_path=data_path, 
+                                       staging=staging_path)
+    sftp.setup_transfer_schedule(local_path=staging_path, 
                                  remote_path=remote_path, 
                                  reporting_interval=download_interval)  
 
