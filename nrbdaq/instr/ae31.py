@@ -123,7 +123,7 @@ class AE31:
         file = f"AE31_{timestamp}.csv"
         self.logger.debug(f"file to stage: {file}")
         try:
-            if os.path.exists(file):
+            if os.path.exists(os.path.join(self.data_path, file)):
                 dst = shutil.copyfile(src=os.path.join(self.data_path, file), 
                                 dst=os.path.join(self.staging_path, file))
                 self.logger.debug(f"file staged: {dst}")
