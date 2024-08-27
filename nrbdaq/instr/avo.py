@@ -121,7 +121,7 @@ def download_multiple(urls: dict, file_path: str, staging: str=str()):
     return all
 
 
-def compile_data(stations: list[str], source: str, remove_duplicates: bool=True, target:str=str(), archive: bool=True) -> dict:
+def compile_data(stations: list[str], source: str, target:str=str(), archive: bool=True) -> dict:
     _ = dict(zip(keys, [pl.DataFrame(schema=dict([('ts', pl.String),
                                                    ('co2', pl.Float32),
                                                    ('pm1', pl.Float32),
@@ -141,34 +141,38 @@ def compile_data(stations: list[str], source: str, remove_duplicates: bool=True,
 
     for root, dirs, files in os.walk(source):
         for file in files:
-            df = pl.read_parquet(os.path.join(root, file))
-            df = df.cast({pl.Int64: pl.Float32, pl.Float64: pl.Float32})
+            if any(station in file for station in stations):
+                df = pl.read_parquet(os.path.join(root, file))
+                df = df.cast({pl.Int64: pl.Float32, pl.Float64: pl.Float32})
 
-            # Some files have ts converted to Datetime already, with or without a dtm column, so we need to make sure these files can be imported.
-            if df['ts'].dtype==pl.Datetime:
-                df = df.rename({'ts': 'dtm'})
-            elif ('dtm' in df.columns and all(df['dtm'].is_null())) or ('dtm' not in df.columns):
-                df = df.with_columns(pl.col("ts").str.to_datetime().alias('dtm'))
+                # Some files have ts converted to Datetime already, with or without a dtm column, so we need to make sure these files can be imported.
+                if df['ts'].dtype==pl.Datetime:
+                    df = df.rename({'ts': 'dtm'})
+                elif ('dtm' in df.columns and all(df['dtm'].is_null())) or ('dtm' not in df.columns):
+                    df = df.with_columns(pl.col("ts").str.to_datetime().alias('dtm'))
+                    df = df.drop('ts')
 
-            basename_parts = file.split('.')[0].split('_')
-            
-            # Handle the case where an underscore is present as the last character before the extension
-            if '' in basename_parts:
-                basename_parts.remove('') 
-            
-            n = len(basename_parts)
-            station = "_".join(basename_parts[:(n-2)])
-            data_type = basename_parts[n-1].split('-')[0]
-            
-            try:
-                if remove_duplicates:
-                    dfs[station][data_type] = pl.concat([dfs[station][data_type], df], how = 'diagonal').unique()
-                else:
-                    dfs[station][data_type] = pl.concat([dfs[station][data_type], df], how = 'diagonal')
-                print(f"Appended data from '{file}'.")
-            except Exception as err:
-                print(f"Failed to append data from '{file}'. Error: {err}")
-                pass
+                # rename columns, drop AQI columns
+                df = df.rename({'pm25_conc': 'pm25', 'pm10_conc': 'pm10'})            
+                df = df.drop(['pm25_aqius', 'pm25_aqicn', 'pm10_aqius', 'pm10_aqicn'])
+
+                basename_parts = file.split('.')[0].split('_')
+                
+                # Handle the case where an underscore is present as the last character before the extension
+                if '' in basename_parts:
+                    basename_parts.remove('') 
+                
+                n = len(basename_parts)
+                station = "_".join(basename_parts[:(n-2)])
+                data_type = basename_parts[n-1].split('-')[0]
+                
+                # append and sort data by dtm, remove duplicates
+                try:
+                    dfs[station][data_type] = pl.concat([dfs[station][data_type], df], how = 'diagonal').sort(by='dtm').unique()
+                    # print(f"Appended data from '{file}'.")
+                except Exception as err:
+                    print(f"Failed to append data from '{file}'. Error: {err}")
+                    pass
 
         if target:
             for station, data in dfs.items():

@@ -139,46 +139,52 @@ class AE31:
             from 370 to 950 nm.  The data are reported on a single line written to disk as follows: 
             Expanded Data Format:  “date”, “time”, UV [370 nm] result, Blue [470 nm] result, Green [520 nm] result, 
             Yellow [590 nm] result, Red [660 nm] result, IR1 [880 nm, “standard BC”] result, IR2 [950 nm] result,  
-            air flow (LPM), bypass fraction, and then the following columns of data repeated for the seven 
+            #air flow (LPM), bypass fraction#, and then the following columns of data repeated for the seven 
             measurement wavelengths: 
             sensing zero signal, sensing beam signal, reference zero signal, reference beam signal, optical attenuation, 
             air flow (LPM), bypass fraction.    
             The ‘air flow’ and ‘bypass fraction’ columns are repeated to allow for easy visual identification of the 
             separation between the seven sets of data columns. 
             A typical line in the data file might look like: 
-            "24-jul-00","16:40", 610 , 604 , 605 , 612 , 617 , 611 , 641 , 3.131 
-            ,-.9812 ,-.9814 , 1.1881 , 1.8384 , 1 , 6.4 , 2.704 
-            ,-.9812 ,-.9814 , 4.2483 , 2.7373 , 1 , 6.4 , 2.45 
-            ,-.9812 ,-.9814 , 2.1716 , 1.9438 , 1 , 6.4 , 2.232 
-            ,-.9812 ,-.9814 , 2.854 , 3.5259 , 1 , 6.4 , 1.957 
-            ,-.9812 ,-.9814 , 3.3428 , 2.596 , 1 , 6.4 , 1.452 
-            ,-.9812 ,-.9814 , 4.6719 , 3.3935 , 1 , 6.4 , 1.396 
-            ,-.9812 ,-.9814 , 2.705 , 2.438 , 1 , 6.4  
+            "24-jul-00","16:40", 610 , 604 , 605 , 612 , 617 , 611 , 641 , 
+            3.131, -.9812 , -.9814 , 1.1881 , 1.8384 , 1 , 6.4 , 
+            2.704 , -.9812 , -.9814 , 4.2483 , 2.7373 , 1 , 6.4 , 
+            2.45  , -.9812 , -.9814 , 2.1716 , 1.9438 , 1 , 6.4 , 
+            2.232 , -.9812 , -.9814 , 2.854 , 3.5259 , 1 , 6.4 , 
+            1.957 , -.9812 , -.9814 , 3.3428 , 2.596 , 1 , 6.4 , 
+            1.452  , -.9812 , -.9814 , 4.6719 , 3.3935 , 1 , 6.4 , 
+            1.396 , -.9812 , -.9814 , 2.705 , 2.438 , 1 , 6.4  
 
         Returns:
             pl.DataFrame: compiled data sets
         """
         df = pl.DataFrame()
 
-        cols = ["dtm","unknown","date","time","UV370","B470","G520","Y590","R660","IR880","IR950","flow",]# "bypass"]
-        cols += ["sens_zero_370","sens_beam_370","ref_zero_370","ref_beam_370","att_370", "unknown_370",]# "bypass_370"] 
-        cols += ["sens_zero_470","sens_beam_470","ref_zero_470","ref_beam_470","att_470", "unknown_470",]# "bypass_470"] 
-        cols += ["sens_zero_520","sens_beam_520","ref_zero_520","ref_beam_520","att_520", "unknown_520",]# "bypass_520"] 
-        cols += ["sens_zero_590","sens_beam_590","ref_zero_590","ref_beam_590","att_590", "unknown_590",]# "bypass_590"] 
-        cols += ["sens_zero_660","sens_beam_660","ref_zero_660","ref_beam_660","att_660", "unknown_660",]# "bypass_660"] 
-        cols += ["sens_zero_880","sens_beam_880","ref_zero_880","ref_beam_880","att_880", "unknown_880",]# "bypass_880"] 
-        cols += ["sens_zero_950","sens_beam_950","ref_zero_950","ref_beam_950","att_950", "unknown_950",]# "bypass_950"] 
-        print(cols)
+        cols = ["dtm","unknown","date","time","UV370","B470","G520","Y590","R660","IR880","IR950","flow",]# "bypass",]
+        cols += ["?370", "sens_zero_370","sens_beam_370","ref_zero_370","ref_beam_370","att_370", ]#"flow_370", "bypass_370",] 
+        cols += ["?470", "sens_zero_470","sens_beam_470","ref_zero_470","ref_beam_470","att_470", ]#"flow_470", "bypass_470",] 
+        cols += ["?520", "sens_zero_520","sens_beam_520","ref_zero_520","ref_beam_520","att_520", ]#"flow_520", "bypass_520",] 
+        cols += ["?590", "sens_zero_590","sens_beam_590","ref_zero_590","ref_beam_590","att_590", ]#"flow_590", "bypass_590",] 
+        cols += ["?660", "sens_zero_660","sens_beam_660","ref_zero_660","ref_beam_660","att_660", ]#"flow_660", "bypass_660",] 
+        cols += ["?880", "sens_zero_880","sens_beam_880","ref_zero_880","ref_beam_880","att_880", ]#"flow_880", "bypass_880",] 
+        cols += ["?950", "sens_zero_950","sens_beam_950","ref_zero_950","ref_beam_950","att_950", ]#"flow_950", "bypass_950",] 
 
         for root, dirs, files in os.walk(self.data_path):
             for file in files:
+                with open(os.path.join(root, file), "r") as fh:
+                    content = fh.read().replace(" ", "").encode()
+
                 if df.is_empty():
-                    df = pl.read_csv(os.path.join(root, file), has_header=False)
+                    df = pl.read_csv(content, has_header=False)
+                    df = df.cast({pl.Int64: pl.Float32, pl.Float64: pl.Float32})
                 else:
                     try:
-                        df = pl.concat([df, pl.read_csv(os.path.join(root, file), has_header=False)], how="diagonal")
-                    except:
-                        self.logger.error(f"{file} could not be appended.")
+                        _ = pl.read_csv(content, has_header=False)
+                        _ = _.cast({pl.Int64: pl.Float32, pl.Float64: pl.Float32})
+                        # _ = _.cast({'column_2': pl.Float32})
+                        df = pl.concat([df, _], how="diagonal")
+                    except Exception as err:
+                        self.logger.error(f"{file} could not be appended. Error: {err}")
                         pass
         if remove_duplicates:
             df = df.unique()

@@ -1,4 +1,5 @@
 import os
+import polars as pl
 import unittest
 from nrbdaq.utils.utils import load_config
 from nrbdaq.utils.sftp import SFTPClient
@@ -51,6 +52,18 @@ class TestAVO(unittest.TestCase):
                               file_path=os.path.join(os.path.expanduser(config['root']), config['AVO']['data']),
                               staging=os.path.join(os.path.expanduser(config['root']), config['AVO']['staging']))
         self.assertEqual(station, 'kmd_hq_nairobi')
+
+class TestAE31(unittest.TestCase):
+    def test_validate_ae31_csv_file(self):
+        valid_file = 'nrbdaq/tests/data/ae31/AE31_20240825.csv'
+        df_valid = pl.read_csv(valid_file, has_header=False)
+        df_valid = df_valid.cast({pl.Int64: pl.Float32, pl.Float64: pl.Float32})
+
+        test_file = 'nrbdaq/tests/data/ae31/AE31_20240805.csv'
+        df_test = pl.read_csv(valid_file, has_header=False)
+        df_test = df_test.cast({pl.Int64: pl.Float32, pl.Float64: pl.Float32})
+
+        self.assertEqual(df_valid.schema, df_test.schema)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
