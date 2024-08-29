@@ -98,7 +98,7 @@ class Thermo49i:
             
             # configure saving and staging schedules
             if self.reporting_interval==10:
-                minutes = [f"00:{self.reporting_interval*n:02}:01" for n in range(6) if self.reporting_interval*n < 6]
+                minutes = [f"{self.reporting_interval*n:02}:01" for n in range(6) if self.reporting_interval*n < 6]
                 for minute in minutes:
                     schedule.every().hour.at(minute).do(self._save_and_stage_data)
             elif self.reporting_interval==60:
