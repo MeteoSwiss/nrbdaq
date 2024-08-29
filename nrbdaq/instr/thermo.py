@@ -108,12 +108,11 @@ class Thermo49i:
             self.logger.error(err)
 
 
-    def tcpip_comm(self, cmd: str, tidy=True) -> str:
+    def tcpip_comm(self, cmd: str) -> str:
         """
         Send a command and retrieve the response. Assumes an open connection.
 
         :param cmd: command sent to instrument
-        :param tidy: remove cmd echo, \n and *\r\x00 from result string, terminate with \n
         :return: response of instrument, decoded
         """
         _id = bytes([self._id])
@@ -136,13 +135,11 @@ class Thermo49i:
                     if b'\x0D' in data:
                         break
 
-            # decode response, tidy
             rcvd = rcvd.decode()
-            if tidy:
-                # - remove checksum after and including the '*'
-                rcvd = rcvd.split("*")[0]
-                # - remove echo before and including '\n'
-                rcvd = rcvd.replace(f"{cmd}\n", "")
+            # remove checksum after and including the '*'
+            rcvd = rcvd.split("*")[0]
+            # remove echo before and including '\n'
+            rcvd = rcvd.replace(f"{cmd}\n", "")
 
             return rcvd
 
@@ -183,6 +180,17 @@ class Thermo49i:
         except Exception as err:
             self.logger.error(err)
             print(err)
+
+
+    def send_command(self, cmd: str) -> str:
+        try:
+            if self._serial_com:
+                response = self.serial_comm(cmd)
+            else:
+                response = self.tcpip_comm(cmd)
+            return response
+        except Exception as err:
+            self.logger.error(err)
 
 
     def get_config(self) -> list:
@@ -257,7 +265,7 @@ class Thermo49i:
             self.logger.error(err)
 
 
-    def get_lr00(self):
+    def accumulate_lr00(self):
         """
         Send command, retrieve response from instrument and append to self._data.
         """
@@ -267,9 +275,8 @@ class Thermo49i:
                 _ = self.serial_comm('lr00')
             else:
                 _ = self.tcpip_comm('lr00')
-            self.logger.info(f"{self._name}: {_}"),
-
-            self._data += f"{dtm} {_}"
+            # self.logger.info(f"{self._name}: {_}"),
+            self._data += f"{dtm} {_}\n"
 
             return
 
@@ -295,9 +302,17 @@ class Thermo49i:
             if save:
                 # generate the datafile name
                 dtm = datetime.now().strftime('%Y%m%d%H%M%S')
-                file = os.path.join(self._data, 
+                file = os.path.join(self.data_path, 
                                     f"{self._name}_all_lrec-{dtm}.dat")
 
+            # get lrec format, then set lrec format
+            if self._serial_com:
+                lrec_format = self.serial_comm('lrec format')
+                _ = self.serial_comm('set lrec format 00 02')
+            else:
+                lrec_format = self.tcpip_comm('lrec format')
+                _ = self.tcpip_comm('set lrec format 00 02')
+            
             # retrieve all lrec records stored in buffer
             index = no_of_lrec
             retrieve = 10
@@ -314,17 +329,17 @@ class Thermo49i:
 
                 # remove all the extra info in the string returned
                 # 05:26 07-19-22 flags 0C100400 o3 30.781 hio3 0.000 cellai 50927 cellbi 51732 bncht 29.9 lmpt 53.1 o3lt 0.0 flowa 0.435 flowb 0.000 pres 493.7
-                data = data.replace("flags ", "")
-                data = data.replace("hio3 ", "")
-                data = data.replace("cellai ", "")
-                data = data.replace("cellbi ", "")
-                data = data.replace("bncht ", "")
-                data = data.replace("lmpt ", "")
-                data = data.replace("o3lt ", "")
-                data = data.replace("flowa ", "")
-                data = data.replace("flowb ", "")
-                data = data.replace("pres ", "")
-                data = data.replace("o3 ", "")
+                # data = data.replace("flags ", "")
+                # data = data.replace("hio3 ", "")
+                # data = data.replace("cellai ", "")
+                # data = data.replace("cellbi ", "")
+                # data = data.replace("bncht ", "")
+                # data = data.replace("lmpt ", "")
+                # data = data.replace("o3lt ", "")
+                # data = data.replace("flowa ", "")
+                # data = data.replace("flowb ", "")
+                # data = data.replace("pres ", "")
+                # data = data.replace("o3 ", "")
 
                 if save:
                     if not os.path.exists(file):
@@ -344,6 +359,12 @@ class Thermo49i:
                 archive = os.path.join(file.replace(".dat", ".zip"))
                 with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as fh:
                     fh.write(file, os.path.basename(file))
+
+            # restore lrec format
+            if self._serial_com:
+                _ = self.serial_comm(f'set {lrec_format}')
+            else:
+                _ = self.tcpip_comm(f'set {lrec_format}')
 
             return data
 
@@ -378,32 +399,32 @@ class Thermo49i:
     def _save_and_stage_data(self):
         try:
             if self._data:
+                # create appropriate file name and write mode
                 if self.reporting_interval==10:
                     timestamp = datetime.now().strftime('%Y%m%d%H%M')
                 elif self.reporting_interval==60:
                     timestamp = datetime.now().strftime('%Y%m%d%H')
                 elif self.reporting_interval==1440:
                     timestamp = datetime.now().strftime('%Y%m%d')
-                
                 file = os.path.join(self.data_path, f"49i-{timestamp}.dat")
                 if os.path.exists(file):
                     mode = 'a'
                 else:
                     mode = 'w'
-                    self.logger.info(f"# Writing to {self.data_path}/49i-{timestamp}.dat")
                 
                 # open file and write to it
                 with open(file=file, mode=mode) as fh:
                     fh.write(self._data)
+                    self.logger.info(f"file saved: {self.data_path}/49i-{timestamp}.dat")
                 
-                # reset self._data
-                self._data = str()
-
                 # create zip file and stage it
                 archive = os.path.join(self.staging_path, os.path.basename(file).replace('.dat', '.zip'))
                 with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as zf:
                     zf.write(file, os.path.basename(file))
-                self.logger.debug(f"file staged: {archive}")
+                    self.logger.debug(f"file staged: {archive}")
+
+                # reset self._data
+                self._data = str()
 
         except Exception as err:
             self.logger.error(err)
