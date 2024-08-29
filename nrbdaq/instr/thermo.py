@@ -94,11 +94,13 @@ class Thermo49i:
             os.makedirs(self.archive_path, exist_ok=True)
 
             # configure data acquisition schedule
-            schedule.every(int(self._sampling_interval)).minutes.at(':00').do(self.get_lr00)
+            schedule.every(int(self._sampling_interval)).minutes.at(':00').do(self.accumulate_lr00)
             
             # configure saving and staging schedules
             if self.reporting_interval==10:
-                schedule.every(10).minutes.at(':01').do(self._save_and_stage_data)
+                minutes = [f"{self.reporting_interval*n:02}:01" for n in range(6) if self.reporting_interval*n < 6]
+                for minute in minutes:
+                    schedule.every().hour.at(minute).do(self._save_and_stage_data)
             elif self.reporting_interval==60:
                 schedule.every().hour.at('00:02').do(self._save_and_stage_data)
             elif self.reporting_interval==1440:
