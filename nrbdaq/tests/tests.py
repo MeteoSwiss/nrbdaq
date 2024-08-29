@@ -4,6 +4,7 @@ import unittest
 from nrbdaq.utils.utils import load_config
 from nrbdaq.utils.sftp import SFTPClient
 import nrbdaq.instr.avo as avo
+from nrbdaq.instr.ae31 import AE31
 from nrbdaq.instr.thermo import Thermo49i
 
 config = load_config('nrbdaq.yaml')
@@ -56,20 +57,18 @@ class TestAVO(unittest.TestCase):
 
 class TestAE31(unittest.TestCase):
     def test_validate_ae31_csv_file(self):
+        ae31 = AE31(config=config)
         valid_file = 'nrbdaq/tests/data/ae31/AE31_20240825.csv'
-        df_valid = pl.read_csv(valid_file, has_header=False)
-        df_valid = df_valid.cast({pl.Int64: pl.Float32, pl.Float64: pl.Float32})
+        df_valid = ae31.csv_to_df(file=valid_file)
 
         test_file = 'nrbdaq/tests/data/ae31/AE31_20240805.csv'
-        df_test = pl.read_csv(valid_file, has_header=False)
-        df_test = df_test.cast({pl.Int64: pl.Float32, pl.Float64: pl.Float32})
+        df_test = ae31.csv_to_df(file=test_file)
 
         self.assertEqual(df_valid.schema, df_test.schema)
 
 class TestThermo49i(unittest.TestCase):
     def test_init(self):
         thermo49i = Thermo49i(config=config)
-        print(thermo49i.data_path)
 
         self.assertEqual(thermo49i._data, str())
 

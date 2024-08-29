@@ -128,8 +128,8 @@ class AE31:
             self.logger.error(err)
 
 
-    def compile_data(self, remove_duplicates: bool=True, archive: bool=True) -> pl.DataFrame:
-        """Compile data files and save as .parquet
+    def csv_to_df(self, file: str) -> pl.DataFrame:
+        """Read an AE31 .csv file and return a pl.DataFrame
 
             14.9.3  Data File Format - Seven wavelength Instruments 
             The AE-3 series seven wavelength Aethalometers measure optical absorbance at seven optical wavelengths 
@@ -151,12 +151,13 @@ class AE31:
             1.957 , -.9812 , -.9814 , 3.3428 , 2.596 , 1 , 6.4 , 
             1.452  , -.9812 , -.9814 , 4.6719 , 3.3935 , 1 , 6.4 , 
             1.396 , -.9812 , -.9814 , 2.705 , 2.438 , 1 , 6.4  
+        
+        Args:
+            file (str): full path to file
 
         Returns:
-            pl.DataFrame: compiled data sets
+            pl.DataFrame: dataframe with header
         """
-        df = pl.DataFrame()
-
         cols = ["dtm","unknown","date","time","UV370","B470","G520","Y590","R660","IR880","IR950","flow",]# "bypass",]
         cols += ["?370", "sens_zero_370","sens_beam_370","ref_zero_370","ref_beam_370","att_370", ]#"flow_370", "bypass_370",] 
         cols += ["?470", "sens_zero_470","sens_beam_470","ref_zero_470","ref_beam_470","att_470", ]#"flow_470", "bypass_470",] 
@@ -166,19 +167,38 @@ class AE31:
         cols += ["?880", "sens_zero_880","sens_beam_880","ref_zero_880","ref_beam_880","att_880", ]#"flow_880", "bypass_880",] 
         cols += ["?950", "sens_zero_950","sens_beam_950","ref_zero_950","ref_beam_950","att_950", ]#"flow_950", "bypass_950",] 
 
+        df = pl.DataFrame()
+
+        try:
+            with open(file, "r") as fh:
+                content = fh.read().replace(" ", "").encode()
+
+            df = pl.read_csv(content, has_header=False)
+            df = df.cast({pl.Int64: pl.Float32, pl.Float64: pl.Float32})
+            df.columns = cols
+            df = df.with_columns(pl.col("dtm").str.to_datetime(time_unit='us', time_zone='UTC'),
+                                pl.col("date").str.to_date("%d-%b-%Y").dt.combine(pl.col("time").str.to_time("%H:%M")).alias("dtm_ae31"))
+
+            return df
+        except Exception as err:
+            self.logger.error(err)
+            
+
+    def compile_data(self, remove_duplicates: bool=True, archive: bool=True) -> pl.DataFrame:
+        """Compile data files and save as .parquet
+
+        Returns:
+            pl.DataFrame: compiled data set
+        """
+        df = pl.DataFrame()
+
         for root, dirs, files in os.walk(self.data_path):
             for file in files:
-                with open(os.path.join(root, file), "r") as fh:
-                    content = fh.read().replace(" ", "").encode()
-
                 if df.is_empty():
-                    df = pl.read_csv(content, has_header=False)
-                    df = df.cast({pl.Int64: pl.Float32, pl.Float64: pl.Float32})
+                    df = self.csv_to_df(os.path.join(root, file))
                 else:
                     try:
-                        _ = pl.read_csv(content, has_header=False)
-                        _ = _.cast({pl.Int64: pl.Float32, pl.Float64: pl.Float32})
-                        # _ = _.cast({'column_2': pl.Float32})
+                        _ = self.csv_to_df(os.path.join(root, file))
                         df = pl.concat([df, _], how="diagonal")
                     except Exception as err:
                         self.logger.error(f"{file} could not be appended. Error: {err}")
@@ -186,10 +206,6 @@ class AE31:
         if remove_duplicates:
             df = df.unique()
         
-        df.columns = cols
-        df = df.with_columns(pl.col("dtm").str.to_datetime(time_unit='us', time_zone='UTC'),
-                             pl.col("date").str.to_date("%d-%b-%Y").dt.combine(pl.col("time").str.to_time("%H:%M")).alias("dtm_ae31"))
-
         df.sort(by=['dtm_ae31'])
 
         if archive:

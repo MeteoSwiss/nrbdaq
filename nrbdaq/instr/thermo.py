@@ -5,7 +5,7 @@ Define a class TEI49I facilitating communication with a Thermo TEI49i instrument
 @author: joerg.klausen@meteoswiss.ch
 """
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 import shutil
 import socket
@@ -14,11 +14,7 @@ import re
 import schedule
 import time
 import zipfile
-
 import colorama
-
-# from mkndaq.utils import datetimebin
-
 
 class Thermo49i:
     def __init__(self, config: dict, name: str='49i'):
@@ -69,50 +65,47 @@ class Thermo49i:
 
             root = os.path.expanduser(config['root'])
 
-            # configure data collection
+            # configure data collection and reporting
             self._sampling_interval = config[name]['sampling_interval']
-            schedule.every(int(self._sampling_interval)).minutes.at(':00').do(self.get_data)
-                     
-            # configure saving, staging and transfer
-            self.data_path = os.path.join(root, config[name]['data'])
-            os.makedirs(self.data_path, exist_ok=True)
-            self.staging_path = os.path.join(root, config[name]['staging'])
-            os.makedirs(self.staging_path, exist_ok=True)
-
             self.reporting_interval = config[name]['reporting_interval']
+            if not self.reporting_interval in [10, 60, 1440]:
+                raise ValueError('reporting_interval must be either 10 or 60 or 1440 minutes.')
+                   
+            # configure saving, staging and archiving
+            self.data_path = os.path.join(root, config[name]['data'])
+            self.staging_path = os.path.join(root, config[name]['staging'])
+            self.archive_path = os.path.join(root, config[name]['archive'])
+
+            # configure remote transfer
+            self.remote_path = config[name]['remote_path']
+
+            # initialize data response           
+            self._data = str()
+
+        except Exception as err:
+            self.logger.error(err)
+
+
+    def setup_schedules(self):
+        try:
+            # configure folders needed
+            os.makedirs(self.data_path, exist_ok=True)
+            os.makedirs(self.staging_path, exist_ok=True)
+            os.makedirs(self.archive_path, exist_ok=True)
+
+            # configure data acquisition schedule
+            schedule.every(int(self._sampling_interval)).minutes.at(':00').do(self.get_lr00)
+            
+            # configure saving and staging schedules
             if self.reporting_interval==10:
                 schedule.every(10).minutes.at(':01').do(self._save_and_stage_data)
             elif self.reporting_interval==60:
                 schedule.every().hour.at('00:02').do(self._save_and_stage_data)
             elif self.reporting_interval==1440:
                 schedule.every().day.at('00:00:03').do(self._save_and_stage_data)
-            else:
-                raise ValueError('reporting_interval must be either 10 or 60 or 1440 minutes.')
-            # _reporting_interval = int(self.reporting_interval / 60)
-            # if (self.reporting_interval % 60)==0 and _reporting_interval in range(24):
-            #     hours = [f"{self.reporting_interval*n:02}:00:03" for n in range(24) if self.reporting_interval*n < 24]
-            #     for hr in hours:
-            #         schedule.every().day.at(hr).do(self._save_and_stage_data)                
-            # else:
-            #     raise ValueError('reporting_interval must be either 10 or (1 .. 24)x60 minutes.')
-
-            # configure archive
-            self.archive_path = os.path.join(root, config[name]['archive'])
-            os.makedirs(self.archive_path, exist_ok=True)
-
-            # configure remote transfer
-            self.remote_path = config[name]['remote_path']
-
-            # initialize data response and datetime stamp           
-            self._data = str()
-            self._dtm = None
-
-            # self.get_config()
-            # self.set_config()
 
         except Exception as err:
             self.logger.error(err)
-            pass
 
 
     def tcpip_comm(self, cmd: str, tidy=True) -> str:
@@ -199,7 +192,6 @@ class Thermo49i:
         :return (err, cfg) configuration or errors, if any.
 
         """
-        print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} .get_config (name={self._name})")
         cfg = []
         try:
             for cmd in self._get_config:
@@ -208,15 +200,12 @@ class Thermo49i:
                 else:
                     cfg.append(self.tcpip_comm(cmd))
 
-            if self._log:
-                self._logger.info(f"Current configuration of '{self._name}': {cfg}")
+            self.logger.info(f"{self._name}: Configuration read as: {cfg}")
 
             return cfg
 
         except Exception as err:
-            if self._log:
-                self._logger.error(err)
-            print(err)
+            self.logger.error(err)
 
 
     def set_datetime(self) -> None:
@@ -231,23 +220,17 @@ class Thermo49i:
                 dte = self.serial_comm(cmd)
             else:
                 dte = self.tcpip_comm(cmd)
-            msg = f"Date of instrument {self._name} set to: {dte}"
-            print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {msg}")
-            self._logger.info(msg)
+            self.logger.info(f"{self._name}: Date set to: {dte}")
 
             cmd = f"set time {time.strftime('%H:%M:%S')}"
             if self._serial_com:
                 tme = self.serial_comm(cmd)
             else:
                 tme = self.tcpip_comm(cmd)
-            msg = f"Time of instrument {self._name} set to: {tme}"
-            print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {msg}")
-            self._logger.info(msg)
+            self.logger.info(f"{self._name}: Time set to: {tme}")
 
         except Exception as err:
-            if self._log:
-                self._logger.error(err)
-            print(err)
+            self.logger.error(err)
 
 
     def set_config(self) -> list:
@@ -266,29 +249,27 @@ class Thermo49i:
                     cfg.append(self.tcpip_comm(cmd))
                 time.sleep(1)
 
-            if self._log:
-                self._logger.info(f"Configuration of '{self._name}' set to: {cfg}")
+            self.logger.info(f"{self._name}: Configuration set to: {cfg}")
 
             return cfg
 
         except Exception as err:
-            if self._log:
-                self._logger.error(err)
-            print(err)
+            self.logger.error(err)
 
 
-    def get_data(self):
+    def get_lr00(self):
         """
         Send command, retrieve response from instrument and append to self._data.
         """
         try:
-            # if self._serial_com:
-            #     _ = self.serial_comm(self._get_data)
-            # else:
-            #     _ = self.tcpip_comm(self._get_data)
-            _ = self.tcpip_comm(self._get_data)
+            dtm = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            if self._serial_com:
+                _ = self.serial_comm('lr00')
+            else:
+                _ = self.tcpip_comm('lr00')
             self.logger.info(f"{self._name}: {_}"),
-            self._data += _
+
+            self._data += f"{dtm} {_}"
 
             return
 
@@ -315,7 +296,7 @@ class Thermo49i:
 
             if save:
                 # generate the datafile name
-                self.__datafile = os.path.join(self.__datadir,
+                self._datafile = os.path.join(self.__datadir,
                                             "".join([self._name, "_all_lrec-",
                                                     time.strftime("%Y%m%d%H%M%S"), ".dat"]))
 
@@ -327,7 +308,7 @@ class Thermo49i:
                 if index < 10:
                     retrieve = index
                 cmd = f"lrec {str(index)} {str(retrieve)}"
-                print(cmd)
+                self.logger.info(cmd)
                 if self._serial_com:
                     data = self.serial_comm(cmd)
                 else:
@@ -348,13 +329,13 @@ class Thermo49i:
                 data = data.replace("o3 ", "")
 
                 if save:
-                    if not os.path.exists(self.__datafile):
+                    if not os.path.exists(self._datafile):
                         # if file doesn't exist, create and write header
-                        with open(self.__datafile, "at", encoding='utf8') as fh:
+                        with open(self._datafile, "at", encoding='utf8') as fh:
                             fh.write(f"{self._data_header}\n")
                             fh.close()
 
-                    with open(self.__datafile, "at", encoding='utf8') as fh:
+                    with open(self._datafile, "at", encoding='utf8') as fh:
                         fh.write(f"{data}\n")
                         fh.close()
 
@@ -366,18 +347,16 @@ class Thermo49i:
                 os.makedirs(root, exist_ok=True)
                 if self.__zip:
                     # create zip file
-                    archive = os.path.join(root, "".join([os.path.basename(self.__datafile[:-4]), ".zip"]))
+                    archive = os.path.join(root, "".join([os.path.basename(self._datafile[:-4]), ".zip"]))
                     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as fh:
-                        fh.write(self.__datafile, os.path.basename(self.__datafile))
+                        fh.write(self._datafile, os.path.basename(self._datafile))
                 else:
-                    shutil.copyfile(self.__datafile, os.path.join(root, os.path.basename(self.__datafile)))
+                    shutil.copyfile(self._datafile, os.path.join(root, os.path.basename(self._datafile)))
 
             return data
 
         except Exception as err:
-            if self._log:
-                self._logger.error(err)
-            print(err)
+            self.logger.error(err)
 
 
     def get_o3(self) -> str:
@@ -388,9 +367,7 @@ class Thermo49i:
                 return self.tcpip_comm('o3')
 
         except Exception as err:
-            if self._log:
-                self._logger.error(err)
-            print(err)
+            self.logger.error(err)
 
 
     def print_o3(self) -> None:
@@ -402,8 +379,7 @@ class Thermo49i:
             print(colorama.Fore.GREEN + f"{time.strftime('%Y-%m-%d %H:%M:%S')} [{self._name}] {o3[0].upper()} {str(float(o3[1]))} {o3[2]}")
 
         except Exception as err:
-            if self._log:
-                self._logger.error(err)
+            self.logger.error(err)
             print(colorama.Fore.RED + f"{time.strftime('%Y-%m-%d %H:%M:%S')} [{self._name}] produced error {err}.")
 
 
@@ -426,7 +402,7 @@ class Thermo49i:
                 
                 # open file and write to it
                 with open(file=file, mode=mode) as fh:
-                    fh.write(f"{self._dtm}, {self._data}\n")
+                    fh.write(self._data)
                 
                 # reset self._data
                 self._data = str()

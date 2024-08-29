@@ -3,6 +3,7 @@ import schedule
 import time
 from nrbdaq.instr.ae31 import AE31
 import nrbdaq.instr.avo as avo
+from nrbdaq.instr.thermo import Thermo49i
 from nrbdaq.utils.sftp import SFTPClient
 from nrbdaq.utils.utils import load_config, setup_logging
 
@@ -39,6 +40,14 @@ def main():
     sftp.setup_transfer_schedule(local_path=staging_path, 
                                  remote_path=remote_path, 
                                  reporting_interval=download_interval)  
+
+    # setup Thermo 49i data acquisition and data transfer
+    thermo49i = Thermo49i(config=config)
+    thermo49i.setup_schedules()
+    remote_path = os.path.join(sftp.remote_path, thermo49i.remote_path)
+    sftp.setup_transfer_schedule(local_path=thermo49i.staging_path, 
+                                 remote_path=remote_path, 
+                                 reporting_interval=thermo49i.reporting_interval)  
 
     # start data acquisition, staging and transfer
     logger.info("== Start NRBDAQ =============")

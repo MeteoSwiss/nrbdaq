@@ -1,5 +1,5 @@
 colorama
-configparser
+# configparser
 paramiko
 polars
 pyserial
