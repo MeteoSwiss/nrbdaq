@@ -277,15 +277,13 @@ class Thermo49i:
             self.logger.error(err)
 
 
-    def get_all_lrec(self, save=True) -> str:
+    def get_all_lrec(self, save: bool=True) -> str:
         """download entire buffer from instrument and save to file
 
         :param bln save: Should data be saved to file? default=True
         :return str response as decoded string
         """
         try:
-            dtm = time.strftime('%Y-%m-%d %H:%M:%S')
-
             # retrieve numbers of lrec stored in buffer
             cmd = "no of lrec"
             if self._serial_com:
@@ -296,9 +294,9 @@ class Thermo49i:
 
             if save:
                 # generate the datafile name
-                self._datafile = os.path.join(self.__datadir,
-                                            "".join([self._name, "_all_lrec-",
-                                                    time.strftime("%Y%m%d%H%M%S"), ".dat"]))
+                dtm = datetime.now().strftime('%Y%m%d%H%M%S')
+                file = os.path.join(self._data, 
+                                    f"{self._name}_all_lrec-{dtm}.dat")
 
             # retrieve all lrec records stored in buffer
             index = no_of_lrec
@@ -329,29 +327,23 @@ class Thermo49i:
                 data = data.replace("o3 ", "")
 
                 if save:
-                    if not os.path.exists(self._datafile):
+                    if not os.path.exists(file):
                         # if file doesn't exist, create and write header
-                        with open(self._datafile, "at", encoding='utf8') as fh:
+                        with open(file, "at", encoding='utf8') as fh:
                             fh.write(f"{self._data_header}\n")
                             fh.close()
 
-                    with open(self._datafile, "at", encoding='utf8') as fh:
+                    with open(file, "at", encoding='utf8') as fh:
                         fh.write(f"{data}\n")
                         fh.close()
 
                 index = index - 10
 
             if save:
-                # stage data for transfer
-                root = os.path.join(self.__staging, os.path.basename(self.__datadir))
-                os.makedirs(root, exist_ok=True)
-                if self.__zip:
-                    # create zip file
-                    archive = os.path.join(root, "".join([os.path.basename(self._datafile[:-4]), ".zip"]))
-                    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as fh:
-                        fh.write(self._datafile, os.path.basename(self._datafile))
-                else:
-                    shutil.copyfile(self._datafile, os.path.join(root, os.path.basename(self._datafile)))
+                # create zip file
+                archive = os.path.join(file.replace(".dat", ".zip"))
+                with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as fh:
+                    fh.write(file, os.path.basename(file))
 
             return data
 
