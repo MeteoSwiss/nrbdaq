@@ -132,9 +132,6 @@ class Thermo49i:
                 s.settimeout(self._socktout)
                 s.connect(self._sockaddr)
 
-                if self._simulate:
-                    _id = b''
-
                 # send data
                 s.sendall(_id + (f"{cmd}\x0D").encode())
                 time.sleep(self._socksleep)
