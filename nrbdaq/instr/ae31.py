@@ -64,18 +64,15 @@ class AE31:
             pass
 
     
-    def serial_read_data(self) -> str:
+    def serial_read_data(self):
         """
-        Read data waiting at serial port. Opens the port, assigns lines read to self._data
-
-        Returns:
-            str: lines read from serial port, decoded from ascii
+        Read data waiting at serial port. Opens the port, assigns lines read to self._data.
         """
         try:
             with serial.Serial(self._serial_port, 9600, 8, 'N', 1, int(self._serial_timeout)) as ser:
                 self._dtm = datetime.now().isoformat(timespec='seconds')
                 self._data = ser.readline().decode('ascii').strip()
-                self.logger.info(f"{self._data[:80]} ..."),
+                self.logger.info(f"AE31: {self._data[:60]} [...]"),
             return
 
         except serial.SerialException as err:

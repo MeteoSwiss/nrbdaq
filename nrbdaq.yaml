@@ -36,6 +36,52 @@ AVO:
   remote_path: avo
   download_interval: 6
 
+49i:
+  # NB: [set avg time 3] must be compatible with lrec per
+  # NB: [set lrec per 1] must correspond to sampling_interval
+  # NB: [set lrec format 0] ASCII no labels
+  # NB: [sampling_interval] minutes. How often should data be requested from instrument?
+  # NB: [reporting_interval] minutes. How often should files be saved, staged and transfered?
+  id: 49
+  serial_number: 49I-B1NAA-12103910681
+  socket:
+    host: 192.168.2.14
+    port: 9880
+    timeout: 5
+    sleep: 0.5
+  get_config:
+    - date
+    - time
+    - mode
+    - gas unit
+    - temp comp
+    - pres comp
+    - range
+    - format
+    - avg time
+    - lrec per
+    - lrec format
+    - o3 coef
+    - o3 bkg
+  set_config:
+    - set mode remote
+    - set gas unit ppb
+    - set temp comp on
+    - set pres comp on
+    - set range 1
+    - set format 00
+    - set avg time 3
+    - set lrec per 1
+    - set lrec format 0
+    - set save params
+  get_data: lr00
+  sampling_interval: 1 
+  reporting_interval: 10
+  staging: staging/49i
+  remote_path: 49i
+  data: data/49i
+  archive: archive/49i
+
 logging:
 # NB: specify file relative to root
   file: nrbdaq.log
