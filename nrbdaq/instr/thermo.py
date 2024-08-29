@@ -47,7 +47,7 @@ class Thermo49i:
 
             self.logger.info(f"# Initialize Thermo 49i (name: {self._name}  S/N: {self._serial_number})")
 
-            self._serial_com = config.get([name]['serial'], None)
+            self._serial_com = config.get(name, {}).get('serial', None)
             if self._serial_com:
                 # configure serial port
                 port = config[name]['port']
@@ -107,7 +107,7 @@ class Thermo49i:
             self._data = str()
             self._dtm = None
 
-            self.get_config()
+            # self.get_config()
             # self.set_config()
 
         except Exception as err:

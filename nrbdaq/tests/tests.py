@@ -4,6 +4,7 @@ import unittest
 from nrbdaq.utils.utils import load_config
 from nrbdaq.utils.sftp import SFTPClient
 import nrbdaq.instr.avo as avo
+from nrbdaq.instr.thermo import Thermo49i
 
 config = load_config('nrbdaq.yaml')
 
@@ -64,6 +65,13 @@ class TestAE31(unittest.TestCase):
         df_test = df_test.cast({pl.Int64: pl.Float32, pl.Float64: pl.Float32})
 
         self.assertEqual(df_valid.schema, df_test.schema)
+
+class TestThermo49i(unittest.TestCase):
+    def test_init(self):
+        thermo49i = Thermo49i(config=config)
+        print(thermo49i.data_path)
+
+        self.assertEqual(thermo49i._data, str())
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
