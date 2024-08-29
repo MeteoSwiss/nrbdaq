@@ -13,8 +13,8 @@ def main():
 
     parser = argparse.ArgumentParser(
         description='Send command to Thermo 49i and receive response.')
-    parser.add_argument('cmd', action="store_true", default='o3', 
-                        help='Command to be sent (default: o3)')
+    parser.add_argument('cmd', 
+                        help='Command to be sent (e.g., o3)')
     args = parser.parse_args()
 
     response = tei49i.send_command(cmd=args.cmd)
