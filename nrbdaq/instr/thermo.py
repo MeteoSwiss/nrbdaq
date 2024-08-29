@@ -47,25 +47,25 @@ class Thermo49i:
 
             self.logger.info(f"# Initialize Thermo 49i (name: {self._name}  S/N: {self._serial_number})")
 
-            # if self._serial_com:
-            #     # configure serial port
-            #     port = config[name]['port']
-            #     self._serial = serial.Serial(port=port,
-            #                                 baudrate=config[port]['baudrate'],
-            #                                 bytesize=config[port]['bytesize'],
-            #                                 parity=config[port]['parity'],
-            #                                 stopbits=config[port]['stopbits'],
-            #                                 timeout=config[port]['timeout'])
-            #     if self._serial.is_open:
-            #         self._serial.close()
-            #     self.logger.info(f"Serial port {port} successfully opened and closed.")
-            # else:
-
-            # configure tcp/ip
-            self._sockaddr = (config[name]['socket']['host'],
-                            config[name]['socket']['port'])
-            self._socktout = config[name]['socket']['timeout']
-            self._socksleep = config[name]['socket']['sleep']
+            self._serial_com = config.get([name]['serial'], None)
+            if self._serial_com:
+                # configure serial port
+                port = config[name]['port']
+                # self._serial = serial.Serial(port=port,
+                #                             baudrate=config[port]['baudrate'],
+                #                             bytesize=config[port]['bytesize'],
+                #                             parity=config[port]['parity'],
+                #                             stopbits=config[port]['stopbits'],
+                #                             timeout=config[port]['timeout'])
+                # if self._serial.is_open:
+                #     self._serial.close()
+                # self.logger.info(f"Serial port {port} successfully opened and closed.")
+            else:
+                # configure tcp/ip
+                self._sockaddr = (config[name]['socket']['host'],
+                                config[name]['socket']['port'])
+                self._socktout = config[name]['socket']['timeout']
+                self._socksleep = config[name]['socket']['sleep']
 
             root = os.path.expanduser(config['root'])
 
@@ -171,8 +171,6 @@ class Thermo49i:
         __id = bytes([self._id])
         rcvd = b''
         try:
-            if self._simulate:
-                __id = b''
             self._serial.write(__id + (f"{cmd}\x0D").encode())
             time.sleep(0.5)
             while self._serial.in_waiting > 0:
@@ -193,8 +191,7 @@ class Thermo49i:
             return rcvd
 
         except Exception as err:
-            if self._log:
-                self._logger.error(err)
+            self.logger.error(err)
             print(err)
 
 
@@ -288,10 +285,11 @@ class Thermo49i:
         Send command, retrieve response from instrument and append to self._data.
         """
         try:
-            if self._serial_com:
-                _ = self.serial_comm(self._get_data)
-            else:
-                _ = self.tcpip_comm(self._get_data)
+            # if self._serial_com:
+            #     _ = self.serial_comm(self._get_data)
+            # else:
+            #     _ = self.tcpip_comm(self._get_data)
+            _ = self.tcpip_comm(self._get_data)
             self.logger.info(f"{self._name}: {_}"),
             self._data += _
 
