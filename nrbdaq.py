@@ -15,6 +15,7 @@ def main():
     # setup logging
     logfile = os.path.join(os.path.expanduser(config['root']), config['logging']['file'])
     logger = setup_logging(file=logfile)
+    logger.info("== Start NRBDAQ =============")
 
     # setup sftp client
     sftp = SFTPClient(config=config)
@@ -50,7 +51,6 @@ def main():
                                  reporting_interval=thermo49i.reporting_interval)  
 
     # start data acquisition, staging and transfer
-    logger.info("== Start NRBDAQ =============")
     logger.info(schedule.get_jobs())
 
     while True:

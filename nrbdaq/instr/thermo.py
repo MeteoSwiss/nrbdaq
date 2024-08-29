@@ -41,7 +41,7 @@ class Thermo49i:
             # self._data_header = config[name]['data_header']
             self._data_header = 'pcdate pctime time date flags o3 hio3 cellai cellbi bncht lmpt o3lt flowa flowb pres'
 
-            self.logger.info(f"# Initialize Thermo 49i (name: {self._name}  S/N: {self._serial_number})")
+            self.logger.info(f"Initialize Thermo 49i (name: {self._name}  S/N: {self._serial_number})")
 
             self._serial_com = config.get(name, {}).get('serial', None)
             if self._serial_com:
@@ -98,7 +98,7 @@ class Thermo49i:
             
             # configure saving and staging schedules
             if self.reporting_interval==10:
-                minutes = [f"{self.reporting_interval*n:02}:01" for n in range(6) if self.reporting_interval*n < 6]
+                minutes = [f"00:{self.reporting_interval*n:02}:01" for n in range(6) if self.reporting_interval*n < 6]
                 for minute in minutes:
                     schedule.every().hour.at(minute).do(self._save_and_stage_data)
             elif self.reporting_interval==60:
