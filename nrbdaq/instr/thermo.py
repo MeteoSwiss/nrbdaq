@@ -66,8 +66,8 @@ class Thermo49i:
             # configure data collection and reporting
             self._sampling_interval = config[name]['sampling_interval']
             self.reporting_interval = config[name]['reporting_interval']
-            if not self.reporting_interval in [10, 60, 1440]:
-                raise ValueError('reporting_interval must be either 10 or 60 or 1440 minutes.')
+            if not (self.reporting_interval % 60)==0 and self.reporting_interval<=1440:
+                raise ValueError('reporting_interval must be a multiple of 60 and less or equal to 1440 minutes.')
                    
             # configure saving, staging and archiving
             self.data_path = os.path.join(root, config[name]['data'])
@@ -294,9 +294,9 @@ class Thermo49i:
             # retrieve numbers of lrec stored in buffer
             cmd = "no of lrec"
             if self._serial_com:
-                no_of_lrec = int(self.serial_comm(cmd)).split()
+                no_of_lrec = int(self.serial_comm(cmd).split()[0])
             else:
-                no_of_lrec = int(self.tcpip_comm(cmd).split())
+                no_of_lrec = int(self.tcpip_comm(cmd).split()[0])
             # no_of_lrec = int(re.findall(r"(\d+)", no_of_lrec)[0])
 
             if save:
