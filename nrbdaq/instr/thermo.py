@@ -273,7 +273,7 @@ class Thermo49i:
                 _ = self.serial_comm('lr00')
             else:
                 _ = self.tcpip_comm('lr00')
-            # self.logger.info(f"{self._name}: {_}"),
+            self.logger.info(f"{self._name}: {_[:60]}[...]"),
             self._data += f"{dtm} {_}\n"
 
             return
@@ -439,7 +439,7 @@ class Thermo49i:
     def _save_and_stage_data(self):
         self._save_data()
         self._stage_file()
-        
+
 
 if __name__ == "__main__":
     pass
