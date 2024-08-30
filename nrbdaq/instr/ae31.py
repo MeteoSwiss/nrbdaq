@@ -31,8 +31,8 @@ class AE31:
             # configure data collection and saving
             self._sampling_interval = config['AE31']['sampling_interval']
             self.reporting_interval = config['AE31']['reporting_interval']
-            if self.reporting_interval not in range(1, 25):
-                raise ValueError('reporting_interval must be in the range of 1..24 hours.')
+            if self.reporting_interval not in [60, 1440]:
+                raise ValueError('reporting_interval must be either 60 or 1440 minutes.')
 
             self.data_path = os.path.join(root, config['AE31']['data'])
             os.makedirs(self.data_path, exist_ok=True)
@@ -42,12 +42,10 @@ class AE31:
             # configure staging
             self.staging_path = os.path.join(root, config['AE31']['staging'])
             os.makedirs(self.staging_path, exist_ok=True)
-            if self.reporting_interval==24:
-                    schedule.every(1).day.at('00:00:10').do(self._stage_data)
-            else:
-                hours = [f"{self.reporting_interval*n:02}:00:10" for n in range(24) if self.reporting_interval*n < 24]
-                for hr in hours:
-                    schedule.every().day.at(hr).do(self._stage_data)
+            if self.reporting_interval==1440:
+                schedule.every(1).day.at('00:00:05').do(self._stage_data)
+            elif self.reporting_interval==60:
+                schedule.every(1).hour.at('00:05').do(self._stage_data)
 
             # configure archive
             self.archive_path = os.path.join(root, config['AE31']['archive'])
