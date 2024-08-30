@@ -302,7 +302,9 @@ class SFTPClient:
             local_path = re.sub(r'(/?\.?\\){1,2}', '/', local_path)
             remote_path = re.sub(r'(/?\.?\\){1,2}', '/', remote_path)
             
-            if (transfer_interval % 60) == 0:
+            if transfer_interval==60:
+                schedule.every().hour.at('00:10').do(self.transfer_files, local_path, remote_path, remove_on_success)
+            elif (transfer_interval % 60) == 0:
                 interval = int(transfer_interval / 60)
                 hours = [f"{interval*n:02}:00:10" for n in range(23) if interval*n <= 23]
                 for hr in hours:
