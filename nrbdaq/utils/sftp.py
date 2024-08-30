@@ -297,17 +297,18 @@ class SFTPClient:
             self.logger.error(err)
 
 
-    def setup_transfer_schedule(self, local_path: str, remote_path: str, remove_on_success: bool=True, reporting_interval: int=24):
+    def setup_transfer_schedule(self, local_path: str, remote_path: str, remove_on_success: bool=True, transfer_interval: int=60):
         try:
             local_path = re.sub(r'(/?\.?\\){1,2}', '/', local_path)
             remote_path = re.sub(r'(/?\.?\\){1,2}', '/', remote_path)
             
-            if reporting_interval==1440:
+            if transfer_interval==1440:
                 schedule.every(1).days.at('00:00:10').do(self.transfer_files, local_path, remote_path, remove_on_success)
-            elif reporting_interval==60:
-                schedule.every().hour.at('00:10').do(self.transfer_files, local_path, remote_path, remove_on_success)
+            elif (transfer_interval % 60) == 0:
+                interval = transfer_interval / 60
+                schedule.every(interval).hours.at('00:10').do(self.transfer_files, local_path, remote_path, remove_on_success)
             else:
-                raise ValueError('reporting_interval must be either 60 or 1440 minutes.')
+                raise ValueError('reporting_interval must be a multiple of 60 minutes and a maximum of 1440 minutes.')
             
         except Exception as err:
             self.schedule_logger.error(err)
