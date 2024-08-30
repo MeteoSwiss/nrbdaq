@@ -303,9 +303,10 @@ class SFTPClient:
             remote_path = re.sub(r'(/?\.?\\){1,2}', '/', remote_path)
             
             if (transfer_interval % 60) == 0:
-                interval = transfer_interval / 60
+                interval = int(transfer_interval / 60)
                 hours = [f"{interval*n:02}:00:10" for n in range(23) if interval*n <= 23]
                 for hr in hours:
+                    self.logger.debug(f"hr: {hr}")
                     schedule.every().day.at(hr).do(self.transfer_files, local_path, remote_path, remove_on_success)
             else:
                 raise ValueError('transfer_interval must be a multiple of 60 minutes and a maximum of 1440 minutes.')
