@@ -302,14 +302,12 @@ class SFTPClient:
             local_path = re.sub(r'(/?\.?\\){1,2}', '/', local_path)
             remote_path = re.sub(r'(/?\.?\\){1,2}', '/', remote_path)
             
-            if reporting_interval==24:
-                schedule.every(1).days.at('00:01:00').do(self.transfer_files, local_path, remote_path, remove_on_success)
-            elif reporting_interval < 24:
-                hours = [f"{reporting_interval*n:02}:01" for n in range(23) if reporting_interval*n <= 23]
-                for hr in hours:
-                    schedule.every().day.at(hr).do(self.transfer_files, local_path, remote_path, remove_on_success)
+            if reporting_interval==1440:
+                schedule.every(1).days.at('00:00:10').do(self.transfer_files, local_path, remote_path, remove_on_success)
+            elif reporting_interval==60:
+                schedule.every().hour.at('00:10').do(self.transfer_files, local_path, remote_path, remove_on_success)
             else:
-                raise ValueError('reporting_interval must be within 1 ... 24 (hours).')
+                raise ValueError('reporting_interval must be either 60 or 1440 minutes.')
             
         except Exception as err:
             self.schedule_logger.error(err)
