@@ -7,11 +7,11 @@ AE31:
 # NB: [serial_timeout] seconds
 # NB: [sampling_interval] minutes
 # NB: specify data, staging, archive relative to root
-# NB: [reporting_interval] hours
+# NB: [reporting_interval] minutes
   serial_port: /dev/ttyUSB0
   serial_timeout: 270
   sampling_interval: 5
-  reporting_interval: 24
+  reporting_interval: 1440
   staging: staging/ae31
   remote_path: ae31
   data: data/ae31
@@ -26,7 +26,7 @@ AE31:
 AVO:
 # NB: list deployments of AirVisual Outdoor unit or which data should be downloaded as url_{site}
 # NB: specify data, staging, archive relative to root
-# NB: [download_interval] hours
+# NB: [download_interval] minutes
   urls:
     url_mogogosiek: https://device.iqair.com/v2/64b78e3ed49ffdbbf25ce862
     url_nairobi: https://device.iqair.com/v2/64b79227b6f7b1125b019970
@@ -34,7 +34,7 @@ AVO:
   data: data/avo
   staging: staging/avo
   remote_path: avo
-  download_interval: 6
+  download_interval: 360
 
 49i:
   # NB: [set avg time 3] must be compatible with lrec per
@@ -76,7 +76,7 @@ AVO:
     - set save params
   get_data: lr00
   sampling_interval: 1 
-  reporting_interval: 10
+  reporting_interval: 60
   staging: staging/49i
   remote_path: 49i
   data: data/49i
