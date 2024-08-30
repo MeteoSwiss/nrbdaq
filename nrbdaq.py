@@ -25,7 +25,7 @@ def main():
     remote_path = os.path.join(sftp.remote_path, ae31.remote_path)
     sftp.setup_transfer_schedule(local_path=ae31.staging_path, 
                                  remote_path=remote_path, 
-                                 reporting_interval=ae31.reporting_interval)  
+                                 transfer_interval=ae31.reporting_interval)  
 
     # setup Nairobi AVO data download, staging and transfer
     data_path = os.path.join(os.path.expanduser(config['root']), config['AVO']['data'])
@@ -40,7 +40,7 @@ def main():
                                        staging=staging_path)
     sftp.setup_transfer_schedule(local_path=staging_path, 
                                  remote_path=remote_path, 
-                                 reporting_interval=download_interval)  
+                                 transfer_interval=download_interval)  
 
     # setup Thermo 49i data acquisition and data transfer
     thermo49i = Thermo49i(config=config)
@@ -48,7 +48,7 @@ def main():
     remote_path = os.path.join(sftp.remote_path, thermo49i.remote_path)
     sftp.setup_transfer_schedule(local_path=thermo49i.staging_path, 
                                  remote_path=remote_path, 
-                                 reporting_interval=thermo49i.reporting_interval)  
+                                 transfer_interval=thermo49i.reporting_interval)  
 
     # start data acquisition, staging and transfer
     logger.info(schedule.get_jobs())
