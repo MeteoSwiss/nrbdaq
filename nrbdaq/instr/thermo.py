@@ -7,9 +7,9 @@ Define a class TEI49I facilitating communication with a Thermo TEI49i instrument
 import os
 from datetime import datetime
 import logging
-import shutil
+# import shutil
 import socket
-import re
+# import re
 # import serial
 import schedule
 import time
@@ -149,7 +149,8 @@ class Thermo49i:
 
         except Exception as err:
             self.logger.error(err)
-
+            return str()
+        
 
     def serial_comm(self, cmd: str, tidy=True) -> str:
         """
@@ -178,6 +179,7 @@ class Thermo49i:
 
         except Exception as err:
             self.logger.error(err)
+            return str()
 
 
     def send_command(self, cmd: str) -> str:
@@ -188,7 +190,8 @@ class Thermo49i:
                 response = self.tcpip_comm(cmd)
             return response
         except Exception as err:
-            self.logger.error(colorama.Fore.RED + err)
+            self.logger.error(colorama.Fore.RED + f"{err}")
+            return str()
 
 
     def get_config(self) -> list:
@@ -212,6 +215,7 @@ class Thermo49i:
 
         except Exception as err:
             self.logger.error(err)
+            return list()
 
 
     def set_datetime(self) -> None:
@@ -261,7 +265,8 @@ class Thermo49i:
 
         except Exception as err:
             self.logger.error(err)
-
+            return list()
+        
 
     def accumulate_lr00(self):
         """
@@ -273,8 +278,8 @@ class Thermo49i:
                 _ = self.serial_comm('lr00')
             else:
                 _ = self.tcpip_comm('lr00')
-            self.logger.info(f"{self._name}: {_[:60]}[...]"),
             self._data += f"{dtm} {_}\n"
+            self.logger.info(f"{self._name}: {_[:60]}[...]")
 
             return
 
@@ -290,6 +295,7 @@ class Thermo49i:
         """
         try:
             data = str()
+            file = str()
 
             # retrieve numbers of lrec stored in buffer
             cmd = "no of lrec"
@@ -366,6 +372,7 @@ class Thermo49i:
 
         except Exception as err:
             self.logger.error(err)
+            return str()
 
 
     def get_o3(self) -> str:
@@ -377,6 +384,7 @@ class Thermo49i:
 
         except Exception as err:
             self.logger.error(err)
+            return str()
 
 
     def print_o3(self) -> None:
@@ -388,11 +396,12 @@ class Thermo49i:
             self.logger.info(colorama.Fore.GREEN + f"{self._name}: {o3[0].upper()} {str(float(o3[1]))} {o3[2]}")
 
         except Exception as err:
-            self.logger.error(colorama.Fore.RED + err)
+            self.logger.error(colorama.Fore.RED + f"{err}")
 
 
     def _save_data(self) -> None:
         try:
+            data_file = str()
             self.data_file = str()
             if self._data:
                 # create appropriate file name and write mode
@@ -416,7 +425,7 @@ class Thermo49i:
                 self._data = str()
 
             self.data_file = data_file
-            return data_file
+            return
 
         except Exception as err:
             self.logger.error(err)
