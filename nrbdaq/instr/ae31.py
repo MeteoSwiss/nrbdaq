@@ -111,7 +111,7 @@ class AE31:
         Copy final data file to the staging area. 
         Establish the timestamp of the previous (now complete) file, then copy it to the staging area.
         """
-        if self.reporting_interval==24:
+        if self.reporting_interval==1440:
             timestamp = (datetime.now() - timedelta(days=1)).strftime('%Y%m%d')
         else:
             timestamp = (datetime.now() - timedelta(hours=self.reporting_interval)).strftime('%Y%m%d%H')

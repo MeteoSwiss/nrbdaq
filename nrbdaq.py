@@ -10,7 +10,7 @@ from nrbdaq.utils.utils import load_config, setup_logging
 
 def main():
     # load configuation
-    config = load_config(config_file='nrbdaq.yaml')
+    config = load_config(config_file='nrbdaq.yml')
 
     # setup logging
     logfile = os.path.join(os.path.expanduser(config['root']), config['logging']['file'])
