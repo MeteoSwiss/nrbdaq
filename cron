@@ -1,5 +1,5 @@
 # crontab -e
 
 # (re-)start program every 24h at midnight or after boot
-@reboot sudo source /home/gaw/git/nrbdaq/nrbdaq.sh > /var/log/syslog 2>&1
-0 0 * * * sudo source /home/gaw/git/nrbdaq/nrbdaq.sh > /var/log/syslog 2>&1
+@reboot /bin/bash /home/gaw/git/nrbdaq/nrbdaq.sh >> /var/log/syslog 2>&1
+0 0 * * * /bin/bash /home/gaw/git/nrbdaq/nrbdaq.sh >> /var/log/syslog 2>&1
