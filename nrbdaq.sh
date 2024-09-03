@@ -5,7 +5,7 @@ export PATH="/usr/local/bin:/usr/bin:/bin"
 export PYTHONPATH="/usr/lib/python311.zip:/usr/lib/python3.11:/usr/lib/python3.11/lib-dynload:/usr/local/lib/python3.11/dist-packages:/usr/lib/python3/dist-packages:/usr/lib/python3.11/dist-packages"
 
 # load virtual environment
-/bin/bash .venv/bin/activate
+source .venv/bin/activate
 
 # navigate to launch folder
 cd /home/gaw/git/nrbdaq/
