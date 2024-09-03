@@ -12,8 +12,12 @@ then
 else
     # load venv
     source .venv/bin/activate
+
+    # change cwd
+    cd /home/gaw/git/nrbdaq/
+    
     # Start the script
-    python3 /home/gaw/git/nrbdaq/nrbdaq.py
+    python3 nrbdaq.py
 fi
 
 # NB: make sure, these are executable
