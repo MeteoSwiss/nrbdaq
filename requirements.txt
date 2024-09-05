@@ -6,3 +6,4 @@ pyyaml
 requests
 schedule
 sockslib
+paho-mqtt
