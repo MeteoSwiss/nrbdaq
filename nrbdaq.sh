@@ -5,19 +5,21 @@ export PATH="/usr/local/bin:/usr/bin:/bin"
 export PYTHONPATH="/usr/lib/python311.zip:/usr/lib/python3.11:/usr/lib/python3.11/lib-dynload:/usr/local/lib/python3.11/dist-packages:/usr/lib/python3/dist-packages:/usr/lib/python3.11/dist-packages"
 
 # Check if the script is already running
-if pgrep -f "/usr/bin/python3 /home/gaw/git/nrbdaq/nrbdaq.py" > /dev/null
+if pgrep -f -a "nrbdaq.py" > /dev/null
 then
-    echo "nrbdaq.py already running."
-    exit 1
+    echo "$(date +\%FT\%T), INFO, nrbdaq.sh, nrbdaq.py already running."
+    # exit 1
 else
     # load venv
-    source .venv/bin/activate
+    source /home/gaw/.venv/bin/activate
+    echo "$(date +\%FT\%T), INFO, nrbdaq.sh, .venv activated"
 
     # change cwd
     cd /home/gaw/git/nrbdaq/
-    
+
     # Start the script
-    /usr/bin/python3 nrbdaq.py
+    /home/gaw/.venv/bin/python3 /home/gaw/git/nrbdaq/nrbdaq.py
+    echo "$(date +\%FT\%T), INFO, nrbdaq.sh, == NRBDAQ (re)started ====" >> /home/gaw/Documents/nrbdaq/nrbdaq.log 2>&1
 fi
 
 # NB: make sure, these are executable
