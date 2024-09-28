@@ -68,7 +68,7 @@ def setup_logging(file: str) -> logging:
     logger.addHandler(fh)
     logger.addHandler(ch)
 
-    mqtt_handler = MQTTHandler()
-    logger.addHandler(mqtt_handler)
+    # mqtt_handler = MQTTHandler()
+    # logger.addHandler(mqtt_handler)
 
     return logger

@@ -17,7 +17,8 @@ $ sudo chmod 664 /etc/systemd/system/nrbdaq.service
 $ sudo systemctl daemon-reload
 $ sudo systemctl enable nrbdaq.service
 
-# read journal
+# linux goodies
+## read journal
 $ sudo journalctl -p err --since "2024-08-27" --until "2024-08-29"
     show all journal entries of level ERROR in specified period
 
@@ -29,3 +30,9 @@ $ ps [aux]
     [a: displays information about other users' processes as well as your own.
      u: displays the processes belonging to the specified usernames.
      x: includes processes that do not have a controlling terminal.]
+
+## list active python processes
+$ pgrep -ef | grep python
+
+## kill a process by id
+$ 
