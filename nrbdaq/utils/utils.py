@@ -4,18 +4,16 @@ import logging
 import yaml
 import paho.mqtt.client as mqtt
 
-# MQTT setup
-broker = "localhost"  # or use the broker's IP address
-port = 1883
-topic = "logs"
-
-client = mqtt.Client()
-client.connect(broker, port, 60)
 
 class MQTTHandler(logging.Handler):
+    def __init__(self, broker: str='localhost', port: int=1883, topic: str='logs'):
+        self.client = mqtt.Client()
+        self.client.connect(broker, port, 60)
+        self.topic = topic
+
     def emit(self, record):
         log_entry = self.format(record)
-        client.publish(topic, log_entry)
+        self.client.publish(self.topic, log_entry)
 
 
 def load_config(config_file: str) -> configparser.ConfigParser:
