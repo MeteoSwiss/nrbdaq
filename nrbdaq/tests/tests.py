@@ -7,7 +7,7 @@ import nrbdaq.instr.avo as avo
 from nrbdaq.instr.ae31 import AE31
 from nrbdaq.instr.thermo import Thermo49i
 
-config = load_config('nrbdaq.yaml')
+config = load_config('nrbdaq.yml')
 
 class TestSFTP(unittest.TestCase):
     def test_config_host(self):
