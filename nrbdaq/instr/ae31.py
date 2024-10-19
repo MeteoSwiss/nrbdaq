@@ -46,9 +46,9 @@ class AE31:
             self.staging_path = os.path.join(root, config['AE31']['staging'])
             os.makedirs(self.staging_path, exist_ok=True)
             if self.reporting_interval==1440:
-                schedule.every(1).day.at('00:00:05').do(self._stage_data)
+                schedule.every(1).day.at('00:00:05').do(self._save_and_stage_data)
             elif self.reporting_interval==60:
-                schedule.every(1).hour.at('00:05').do(self._stage_data)
+                schedule.every(1).hour.at('00:05').do(self._save_and_stage_data)
 
             # configure archive
             # self.archive_path = os.path.join(root, config['AE31']['archive'])

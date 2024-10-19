@@ -31,8 +31,8 @@ $ ps [aux]
      u: displays the processes belonging to the specified usernames.
      x: includes processes that do not have a controlling terminal.]
 
-## list active python processes
-$ pgrep -ef | grep python
+## list active instances of nrbdaq.py
+$ pgrep -f -a "nrbdaq.py"
 
 ## kill a process by id
-$ 
+$ kill <pid>

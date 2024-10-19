@@ -22,6 +22,7 @@ def main():
 
     # setup AE31 data acquisition and data transfer
     ae31 = AE31(config=config)
+    ae31.setup_schedules()
     remote_path = os.path.join(sftp.remote_path, ae31.remote_path)
     sftp.setup_transfer_schedule(local_path=ae31.staging_path, 
                                  remote_path=remote_path, 
