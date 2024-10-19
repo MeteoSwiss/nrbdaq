@@ -1,11 +1,14 @@
-import os
-import colorama
 import logging
-from datetime import datetime, timedelta
+import os
+import shutil
+import zipfile
+from datetime import datetime
+
+import colorama
 import polars as pl
 import schedule
-import shutil
 import serial
+
 
 class AE31:
     def __init__(self, config: dict):
@@ -36,8 +39,8 @@ class AE31:
 
             self.data_path = os.path.join(root, config['AE31']['data'])
             os.makedirs(self.data_path, exist_ok=True)
-            schedule.every(int(self._sampling_interval)).minutes.at(':00').do(self.serial_read_data)
-            schedule.every(int(self._sampling_interval)).minutes.at(':01').do(self._save_data)
+            # schedule.every(int(self._sampling_interval)).minutes.at(':00').do(self.accumulate_data)
+            # schedule.every(int(self._sampling_interval)).minutes.at(':01').do(self._save_data)
                      
             # configure staging
             self.staging_path = os.path.join(root, config['AE31']['staging'])
@@ -48,28 +51,58 @@ class AE31:
                 schedule.every(1).hour.at('00:05').do(self._stage_data)
 
             # configure archive
-            self.archive_path = os.path.join(root, config['AE31']['archive'])
-            os.makedirs(self.archive_path, exist_ok=True)
+            # self.archive_path = os.path.join(root, config['AE31']['archive'])
+            # os.makedirs(self.archive_path, exist_ok=True)
 
             # configure remote transfer
             self.remote_path = config['AE31']['remote_path']
 
             # initialize data response and datetime stamp           
             self._data = str()
+            self.data_file = str()
             self._dtm = None
+
         except Exception as err:
             self.logger.error(err)
             pass
 
     
-    def serial_read_data(self):
+    def setup_schedules(self):
+        try:
+            # configure folders needed
+            os.makedirs(self.data_path, exist_ok=True)
+            os.makedirs(self.staging_path, exist_ok=True)
+            # os.makedirs(self.archive_path, exist_ok=True)
+
+            # configure data acquisition schedule
+            schedule.every(int(self._sampling_interval)).minutes.at(':00').do(self.accumulate_data)
+            # schedule.every(int(self._sampling_interval)).minutes.at(':01').do(self._save_data)
+            
+            # configure saving and staging schedules
+            if self.reporting_interval==10:
+                self._file_timestamp_format = '%Y%m%d%H%M'
+                minutes = [f"{self.reporting_interval*n:02}" for n in range(6) if self.reporting_interval*n < 6]
+                for minute in minutes:
+                    schedule.every().hour.at(f"{minute}:01").do(self._save_and_stage_data)
+            elif self.reporting_interval==60:
+                self._file_timestamp_format = '%Y%m%d%H'
+                schedule.every().hour.at('00:01').do(self._save_and_stage_data)
+            elif self.reporting_interval==1440:
+                self._file_timestamp_format = '%Y%m%d'
+                schedule.every().day.at('00:00:01').do(self._save_and_stage_data)
+
+        except Exception as err:
+            self.logger.error(err)
+
+
+    def accumulate_data(self):
         """
         Read data waiting at serial port. Opens the port, assigns lines read to self._data.
         """
         try:
             with serial.Serial(self._serial_port, 9600, 8, 'N', 1, int(self._serial_timeout)) as ser:
                 self._dtm = datetime.now().isoformat(timespec='seconds')
-                self._data = ser.readline().decode('ascii').strip()
+                self._data += ser.readline().decode('ascii').strip()
                 self.logger.info(f"AE31: {self._data[:60]} [...]"),
             return
 
@@ -87,43 +120,64 @@ class AE31:
         """
         try:
             if self._data:
-                if self.reporting_interval==24:
+                if self.reporting_interval==1440:
                     timestamp = datetime.now().strftime('%Y%m%d')
                 else:
                     timestamp = datetime.now().strftime('%Y%m%d%H')
-                file = os.path.join(self.data_path, f"AE31_{timestamp}.csv")
-                if os.path.exists(file):
+                self.data_file = os.path.join(self.data_path, f"ae31-{timestamp}.csv")
+                if os.path.exists(self.data_file):
                     mode = 'a'
                 else:
                     mode = 'w'
-                    self.logger.info(f"# Reading data and writing to {self.data_path}/AE31_{timestamp}.csv")
+                    self.logger.info(f"# Reading data and writing to {self.data_path}/ae31-{timestamp}.csv")
                 
                 # open file and write to it
-                with open(file=file, mode=mode) as fh:
+                with open(file=self.data_file, mode=mode) as fh:
                     fh.write(f"{self._dtm}, {self._data}\n")
 
+                # reset self._data
+                self._data = str()
+
         except Exception as err:
             self.logger.error(err)
 
 
-    def _stage_data(self):
+    def _stage_file(self):
+        """ Create zip file from self.data_file and stage archive.
         """
-        Copy final data file to the staging area. 
-        Establish the timestamp of the previous (now complete) file, then copy it to the staging area.
-        """
-        if self.reporting_interval==1440:
-            timestamp = (datetime.now() - timedelta(days=1)).strftime('%Y%m%d')
-        else:
-            timestamp = (datetime.now() - timedelta(hours=self.reporting_interval)).strftime('%Y%m%d%H')
-        file = f"AE31_{timestamp}.csv"
-        self.logger.debug(f"file to stage: {file}")
         try:
-            if os.path.exists(os.path.join(self.data_path, file)):
-                dst = shutil.copyfile(src=os.path.join(self.data_path, file), 
-                                dst=os.path.join(self.staging_path, file))
-                self.logger.debug(f"file staged: {dst}")
+            if self.data_file:
+                archive = os.path.join(self.staging_path, os.path.basename(self.data_file).replace('.csv', '.zip'))
+                with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                    zf.write(self.data_file, os.path.basename(self.data_file))
+                    self.logger.info(f"file staged: {archive}")
+
         except Exception as err:
             self.logger.error(err)
+
+
+    def _save_and_stage_data(self):
+        self._save_data()
+        self._stage_file()
+
+    # def _stage_data(self):
+    #     """
+    #     Copy final data file to the staging area. 
+    #     Establish the timestamp of the previous (now complete) file, then copy it to the staging area.
+    #     """
+    #     if self.reporting_interval==1440:
+    #         timestamp = (datetime.now() - timedelta(days=1)).strftime('%Y%m%d')
+    #     else:
+    #         timestamp = (datetime.now() - timedelta(hours=self.reporting_interval)).strftime('%Y%m%d%H')
+    #     file = f"ae31-{timestamp}.csv"
+    #     self.logger.debug(f"file to stage: {file}")
+    #     try:
+    #         if os.path.exists(os.path.join(self.data_path, file)):
+    #             dst = shutil.copyfile(src=os.path.join(self.data_path, file), 
+    #                             dst=os.path.join(self.staging_path, file))
+    #             self.logger.info(f"file staged: {dst}")
+    #     except Exception as err:
+    #         self.logger.error(err)
 
 
     def csv_to_df(self, file: str) -> pl.DataFrame:
