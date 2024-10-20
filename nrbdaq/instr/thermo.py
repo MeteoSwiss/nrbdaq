@@ -209,7 +209,7 @@ class Thermo49i:
                 else:
                     cfg.append(self.tcpip_comm(cmd))
 
-            self.logger.info(f"{self._name}: Configuration read as: {cfg}")
+            self.logger.info(f"{self._name}, Configuration read as: {cfg}")
 
             return cfg
 
@@ -230,14 +230,14 @@ class Thermo49i:
                 dte = self.serial_comm(cmd)
             else:
                 dte = self.tcpip_comm(cmd)
-            self.logger.info(f"{self._name}: Date set to: {dte}")
+            self.logger.info(f"{self._name}, Date set to: {dte}")
 
             cmd = f"set time {time.strftime('%H:%M:%S')}"
             if self._serial_com:
                 tme = self.serial_comm(cmd)
             else:
                 tme = self.tcpip_comm(cmd)
-            self.logger.info(f"{self._name}: Time set to: {tme}")
+            self.logger.info(f"{self._name}, Time set to: {tme}")
 
         except Exception as err:
             self.logger.error(err)
@@ -259,7 +259,7 @@ class Thermo49i:
                     cfg.append(self.tcpip_comm(cmd))
                 time.sleep(1)
 
-            self.logger.info(f"{self._name}: Configuration set to: {cfg}")
+            self.logger.info(f"{self._name}, Configuration set to: {cfg}")
 
             return cfg
 
@@ -279,7 +279,7 @@ class Thermo49i:
             else:
                 _ = self.tcpip_comm('lr00')
             self._data += f"{dtm} {_}\n"
-            self.logger.info(f"{self._name}: {_[:60]}[...]")
+            self.logger.info(f"{self._name}, {_[:60]}[...]")
 
             return
 
@@ -393,7 +393,7 @@ class Thermo49i:
                 o3 = self.serial_comm('o3').split()
             else:
                 o3 = self.tcpip_comm('o3').split()
-            self.logger.info(colorama.Fore.GREEN + f"{self._name}: {o3[0].upper()} {str(float(o3[1]))} {o3[2]}")
+            self.logger.info(colorama.Fore.GREEN + f"{self._name}, {o3[0].upper()} {str(float(o3[1]))} {o3[2]}")
 
         except Exception as err:
             self.logger.error(colorama.Fore.RED + f"{err}")

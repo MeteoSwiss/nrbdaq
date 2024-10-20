@@ -4,47 +4,69 @@ import os
 import time
 from datetime import datetime
 from typing import Optional
-from nrbdaq.utils.utils import setup_logger, load_config
+from nrbdaq.utils.utils import setup_logging, load_config
 import polars as pl
 import schedule
 import serial
 
 
 class Aurora3000:
-    def __init__(self, config_file: str = 'nrbdaq.cfg'):
+    def __init__(self, config: dict):
         """
-        Initialize the AE31 instrument class with parameters from a configuration file.
+        Initialize the Aurora 3000 instrument class with parameters from a configuration file.
 
         :param config_file: Path to the configuration file.
         """
         try:
-            self.config = load_config(config_file)
+            # configure logging
+            _logger = f"{os.path.basename(config['logging']['file'])}".split('.')[0]
+            self.logger = logging.getLogger(f"{_logger}.{__name__}")
+            self.logger.info("Initialize Aurora 3000 nephelometer")
             
-            self.logger = setup_logger(name=__name__,
-                          file=self.config['logging']['file'], 
-                          level_console=self.config['logging']['level_console'], 
-                          level_file=self.config['logging']['level_file'])
+            # configure serial port
+            self._serial_port = config['Aurora3000']['serial_port']
+            self._serial_timeout = config['Aurora3000']['serial_timeout']
+            
+            root = os.path.expanduser(config['root'])
 
-            # self.simulate = self.config['app']['simulate']
-            self.simulate = False
+            # configure data collection and saving
+            self._sampling_interval = config['Aurora3000']['sampling_interval']
+            self.reporting_interval = config['Aurora3000']['reporting_interval']
+            if self.reporting_interval not in [60, 1440]:
+                raise ValueError('reporting_interval must be either 60 or 1440 minutes.')
 
-            self.staging_root = os.path.expanduser(self.config['staging']['root'])
-            os.makedirs(self.staging_root, exist_ok=True)
-            self.data_root = os.path.expanduser(self.config['data']['root'])
-            os.makedirs(self.data_root, exist_ok=True)
-            # self.data = pl.DataFrame({"timestamp": [], "data": []})
+            self.data_path = os.path.join(root, config['Aurora3000']['data'])
+            os.makedirs(self.data_path, exist_ok=True)
+                     
+            # configure staging
+            self.staging_path = os.path.join(root, config['Aurora3000']['staging'])
+            os.makedirs(self.staging_path, exist_ok=True)
+            if self.reporting_interval==1440:
+                schedule.every(1).day.at('00:00:05').do(self._save_and_stage_data)
+            elif self.reporting_interval==60:
+                schedule.every(1).hour.at('00:05').do(self._save_and_stage_data)
+
+            # configure archive
+            # self.archive_path = os.path.join(root, config['Aurora3000']['archive'])
+            # os.makedirs(self.archive_path, exist_ok=True)
+
+            # configure remote transfer
+            self.remote_path = config['Aurora3000']['remote_path']
+
+            # initialize data response and datetime stamp           
+            self._data = str()
+            self.data_file = str()
+            self._dtm = None
+
             self.data = pl.DataFrame({"timestamp": [str()], "data": [str()]})
             
             self.current_hour = datetime.now().hour
 
-            self.port = self.config['Aurora3000']['serial_port']
-            self.baudrate = int(self.config['Aurora3000']['serial_baudrate'])
-            self.timeout = float(self.config['Aurora3000']['serial_timeout'])
-            if self.simulate:
-                self.read_interval = 1
-            else:
-                self.read_interval = self.config['Aurora3000']['read_interval']
-                self.serial_conn = serial.Serial(self.port, self.baudrate, timeout=self.timeout)
+            self.port = config['Aurora3000']['serial_port']
+            self.baudrate = int(config['Aurora3000']['serial_baudrate'])
+            self.timeout = float(config['Aurora3000']['serial_timeout'])
+            self.read_interval = config['Aurora3000']['sampling_interval']
+            self.serial_conn = serial.Serial(self.port, self.baudrate, timeout=self.timeout)
 
         except serial.SerialException as err:
             self.logger.error(f"Serial communication error: {err}")
@@ -53,47 +75,49 @@ class Aurora3000:
             self.logger.error(f"General error: {err}")
             pass
 
-    def collect_readings(self):
-        """
-        Collect new readings from the Aurora3000 instrument and store them in hourly parquet files.
-        """
+    # def collect_readings(self):
+    #     """
+    #     Collect new readings from the Aurora3000 instrument and store them in hourly parquet files.
+    #     """
+    #     try:
+    #         if self.serial_conn.in_waiting == 0:
+    #             raw_data = self.read_new_data()
+    #         # elif self.serial_conn.in_waiting > 0:
+    #         #     raw_data = self.serial_conn.readline().decode('ascii').strip() 
+    #         current_time = datetime.now()
+    #         timestamp = current_time.isoformat()
+
+    #         if raw_data:
+    #             # Check for duplicates
+    #             # if not self.data.filter(pl.col("data") == raw_data).is_empty():
+    #             if self.data.filter(pl.col("data") == raw_data).is_empty():
+    #                 new_row = pl.DataFrame({"timestamp": [timestamp], "data": [raw_data]})
+    #                 self.data = pl.concat([self.data, new_row], how='diagonal')
+
+    #         # Check if we need to write the data to a new file
+    #         if config['app']['simulate'] or current_time.hour != self.current_hour:
+    #             self.stage_and_store_data(current_time)
+    #             self.data = pl.DataFrame({"timestamp": [str()], "data": [str()]})
+    #             self.current_hour = current_time.hour
+
+    #     except serial.SerialException as err:
+    #         self.logger.error(f"Serial communication error: {err}")
+    #         pass
+    #     except Exception as err:
+    #         self.logger.error(f"General error: {err}")
+    #         pass
+
+
+    def read_new_data(self, sep: str=',') -> None:
         try:
-            if self.simulate:
-                raw_data = f"this,is,a,test"
-            elif self.serial_conn.in_waiting == 0:
-                raw_data = self.read_new_data()
-            # elif self.serial_conn.in_waiting > 0:
-            #     raw_data = self.serial_conn.readline().decode('ascii').strip() 
-            current_time = datetime.now()
-            timestamp = current_time.isoformat()
-
-            if raw_data:
-                # Check for duplicates
-                # if not self.data.filter(pl.col("data") == raw_data).is_empty():
-                if self.data.filter(pl.col("data") == raw_data).is_empty():
-                    new_row = pl.DataFrame({"timestamp": [timestamp], "data": [raw_data]})
-                    self.data = pl.concat([self.data, new_row], how='diagonal')
-
-            # Check if we need to write the data to a new file
-            if self.config['app']['simulate'] or current_time.hour != self.current_hour:
-                self.stage_and_store_data(current_time)
-                self.data = pl.DataFrame({"timestamp": [str()], "data": [str()]})
-                self.current_hour = current_time.hour
-
-        except serial.SerialException as err:
-            self.logger.error(f"Serial communication error: {err}")
-            pass
+            msg = f"***D\r".encode()
+            self.serial_conn.write(msg)
+            time.sleep(0.2)
+            self._data = self.serial_conn.readline().decode('ascii').strip() 
+            self._data = self._data.replace('\r\n\n', '\r\n').replace(", ", ",").replace(",", sep)
+            return
         except Exception as err:
-            self.logger.error(f"General error: {err}")
-            pass
-
-    def read_new_data(self, sep: str=',') -> list[str]:
-        msg = f"***D\r".encode()
-        self.serial_conn.write(msg)
-        time.sleep(0.2)
-        data = self.serial_conn.readline().decode('ascii').strip() 
-        data = data.replace('\r\n\n', '\r\n').replace(", ", ",").replace(",", sep)
-        return data
+            self.logger.error(err)
 
     # def get_all_data(self, verbosity: int=0) -> str:
     #     """
@@ -258,10 +282,7 @@ class Aurora3000:
 
         :param current_time: The current time to generate the file name.
         """
-        if self.simulate:
-            file_name = f"Aurora3000_{current_time.strftime('%Y%m%dT%H%M')}.parquet"
-        else:
-            file_name = f"Aurora3000_{current_time.strftime('%Y%m%dT%H')}.parquet"
+        file_name = f"Aurora3000-{current_time.strftime('%Y%m%dT%H')}.parquet"
         
         # write data to staging area
         self.data.write_parquet(os.path.join(self.staging_root, file_name))

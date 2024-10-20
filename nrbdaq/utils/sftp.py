@@ -55,7 +55,7 @@ class SFTPClient:
             self.schedule_logger = logging.getLogger(f"{_logger}.schedule")
             self.schedule_logger.setLevel(level=logging.DEBUG)
             
-            self.logger.info("Initialize SFTPClient")
+            self.logger.info("sftp, Initialize SFTPClient")
 
             # sftp connection settings
             self.host = config['sftp']['host']
@@ -174,7 +174,7 @@ class SFTPClient:
             # sanitize remote_path
             remote_path = re.sub(r'(/?\.?\\){1,2}', '/', remote_path)
 
-            self.logger.info(f".setup_remote_folders (local_path: {local_path}, remote_path: {remote_path})")
+            self.logger.info(f"sftp, .setup_remote_folders (local_path: {local_path}, remote_path: {remote_path})")
 
             with paramiko.SSHClient() as ssh:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -204,7 +204,7 @@ class SFTPClient:
         try:
             if os.path.exists(local_path):
                 remote_path = re.sub(r'(/?\.?\\){1,2}', '/', remote_path)
-                msg = f".put {local_path} > {remote_path}"
+                msg = f"sftp, .put {local_path} > {remote_path}"
                 with paramiko.SSHClient() as ssh:
                     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                     ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
@@ -229,7 +229,7 @@ class SFTPClient:
         """
         try:
             if self.remote_item_exists(remoteitem=remote_path):
-                msg = f".remove_file {remote_path}"
+                msg = f"sftp, .remove_file {remote_path}"
                 with paramiko.SSHClient() as ssh:
                     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                     ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
@@ -261,7 +261,7 @@ class SFTPClient:
             if remote_path is None:
                 remote_path = self.remote_path
 
-            self.logger.info(f".transfer_all_files (local path: {local_path}, remote path: {remote_path})")
+            self.logger.debug(f"sftp, .transfer_all_files (local path: {local_path}, remote path: {remote_path})")
 
             # localitem = None
             # remoteitem = None
