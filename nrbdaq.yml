@@ -75,7 +75,7 @@ AVO:
     - set lrec format 0
     - set save params
   get_data: lr00
-  sampling_interval: 1 
+  sampling_interval: 1
   reporting_interval: 60
   staging: staging/49i
   remote_path: 49i
