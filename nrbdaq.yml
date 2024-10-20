@@ -11,7 +11,7 @@ AE31:
   serial_port: /dev/ttyUSB0
   serial_timeout: 270
   sampling_interval: 5
-  reporting_interval: 1440
+  reporting_interval: 60
   staging: staging/ae31
   remote_path: ae31
   data: data/ae31
