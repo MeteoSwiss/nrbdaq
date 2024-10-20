@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  nrbdaq:
+    image: nrbdaq
+    build:
+      context: .
+      dockerfile: ./Dockerfile
