@@ -43,7 +43,7 @@ class AE31:
             # schedule.every(int(self._sampling_interval)).minutes.at(':01').do(self._save_data)
                      
             # configure staging
-            # self.staging_path = os.path.join(root, config['AE31']['staging'])
+            self.staging_path = os.path.join(root, config['AE31']['staging'])
             # os.makedirs(self.staging_path, exist_ok=True)
             # if self.reporting_interval==1440:
             #     schedule.every(1).day.at('00:00:05').do(self._save_and_stage_data)
