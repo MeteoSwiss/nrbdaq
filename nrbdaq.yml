@@ -19,7 +19,8 @@ AE31:
 
 Aurora3000:
 # [Aurora3000]
-  serial_port: COM1
+  serial_port: /dev/ttyUSB1
+  # serial_port: COM1
   serial_baudrate: 19200
   serial_timeout: 1
   sampling_interval: 1
