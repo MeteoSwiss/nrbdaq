@@ -4,6 +4,7 @@ import time
 from nrbdaq.instr.ae31 import AE31
 import nrbdaq.instr.avo as avo
 from nrbdaq.instr.thermo import Thermo49i
+from nrbdaq.instr.aurora3000 import Aurora3000
 from nrbdaq.utils.sftp import SFTPClient
 from nrbdaq.utils.utils import load_config, setup_logging
 
@@ -51,9 +52,23 @@ def main():
                                  remote_path=remote_path, 
                                  transfer_interval=thermo49i.reporting_interval)  
 
+    # setup Aurora3000
+    neph = Aurora3000(config=config)
+    neph.setup_schedules()
+    logger.info(f"get_instrument_id: {neph.get_instrument_id()}")
+    remote_path = os.path.join(sftp.remote_path, neph.remote_path)
+    sftp.setup_transfer_schedule(local_path=neph.staging_path, 
+                                 remote_path=remote_path, 
+                                 transfer_interval=neph.reporting_interval)  
+
     # start data acquisition, staging and transfer
     logger.info(schedule.get_jobs())
 
+    # align start with a 1 minute timestamp
+    while int(time.time()) % 60 > 0:    
+        time.sleep(0.1)
+
+    # start jobs
     while True:
         schedule.run_pending()
         time.sleep(1)

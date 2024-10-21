@@ -99,13 +99,13 @@ class Thermo49i:
                 self._file_timestamp_format = '%Y%m%d%H%M'
                 minutes = [f"{self.reporting_interval*n:02}" for n in range(6) if self.reporting_interval*n < 6]
                 for minute in minutes:
-                    schedule.every().hour.at(f"{minute}:01").do(self._save_and_stage_data)
+                    schedule.every(1).hour.at(f"{minute}:01").do(self._save_and_stage_data)
             elif self.reporting_interval==60:
                 self._file_timestamp_format = '%Y%m%d%H'
-                schedule.every().hour.at('00:01').do(self._save_and_stage_data)
+                schedule.every(1).hour.at('00:01').do(self._save_and_stage_data)
             elif self.reporting_interval==1440:
                 self._file_timestamp_format = '%Y%m%d'
-                schedule.every().day.at('00:00:01').do(self._save_and_stage_data)
+                schedule.every(1).day.at('00:00:01').do(self._save_and_stage_data)
 
         except Exception as err:
             self.logger.error(err)

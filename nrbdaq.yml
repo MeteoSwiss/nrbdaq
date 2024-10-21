@@ -19,11 +19,11 @@ AE31:
 
 Aurora3000:
 # [Aurora3000]
-  serial_port: COM3
-  serial_baudrate: 9600
+  serial_port: COM1
+  serial_baudrate: 19200
   serial_timeout: 1
   sampling_interval: 1
-  reporting_interval: 60
+  reporting_interval: 10
   staging: staging/aurora3000
   remote_path: aurora3000
   data: data/aurora3000

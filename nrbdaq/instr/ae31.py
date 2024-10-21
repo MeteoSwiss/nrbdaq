@@ -32,10 +32,10 @@ class AE31:
             root = os.path.expanduser(config['root'])
 
             # configure data collection and saving
-            self._sampling_interval = config['AE31']['sampling_interval']
-            self.reporting_interval = config['AE31']['reporting_interval']
-            if self.reporting_interval not in [60, 1440]:
-                raise ValueError('reporting_interval must be either 60 or 1440 minutes.')
+            self._sampling_interval = int(config['AE31']['sampling_interval'])
+            self.reporting_interval = int(config['AE31']['reporting_interval'])
+            if not (self.reporting_interval % 60)==0 and self.reporting_interval<=1440:
+                raise ValueError('reporting_interval must be a multiple of 60 and less or equal to 1440 minutes.')
 
             self.data_path = os.path.join(root, config['AE31']['data'])
             os.makedirs(self.data_path, exist_ok=True)
@@ -43,12 +43,12 @@ class AE31:
             # schedule.every(int(self._sampling_interval)).minutes.at(':01').do(self._save_data)
                      
             # configure staging
-            self.staging_path = os.path.join(root, config['AE31']['staging'])
-            os.makedirs(self.staging_path, exist_ok=True)
-            if self.reporting_interval==1440:
-                schedule.every(1).day.at('00:00:05').do(self._save_and_stage_data)
-            elif self.reporting_interval==60:
-                schedule.every(1).hour.at('00:05').do(self._save_and_stage_data)
+            # self.staging_path = os.path.join(root, config['AE31']['staging'])
+            # os.makedirs(self.staging_path, exist_ok=True)
+            # if self.reporting_interval==1440:
+            #     schedule.every(1).day.at('00:00:05').do(self._save_and_stage_data)
+            # elif self.reporting_interval==60:
+            #     schedule.every(1).hour.at('00:05').do(self._save_and_stage_data)
 
             # configure archive
             # self.archive_path = os.path.join(root, config['AE31']['archive'])
@@ -75,7 +75,7 @@ class AE31:
             # os.makedirs(self.archive_path, exist_ok=True)
 
             # configure data acquisition schedule
-            schedule.every(int(self._sampling_interval)).minutes.at(':00').do(self.accumulate_data)
+            schedule.every(self._sampling_interval).minutes.at(':00').do(self.accumulate_data)
             # schedule.every(int(self._sampling_interval)).minutes.at(':01').do(self._save_data)
             
             # configure saving and staging schedules
@@ -83,13 +83,13 @@ class AE31:
                 self._file_timestamp_format = '%Y%m%d%H%M'
                 minutes = [f"{self.reporting_interval*n:02}" for n in range(6) if self.reporting_interval*n < 6]
                 for minute in minutes:
-                    schedule.every().hour.at(f"{minute}:01").do(self._save_and_stage_data)
+                    schedule.every(1).hour.at(f"{minute}:01").do(self._save_and_stage_data)
             elif self.reporting_interval==60:
                 self._file_timestamp_format = '%Y%m%d%H'
-                schedule.every().hour.at('00:01').do(self._save_and_stage_data)
+                schedule.every(1).hour.at('00:01').do(self._save_and_stage_data)
             elif self.reporting_interval==1440:
                 self._file_timestamp_format = '%Y%m%d'
-                schedule.every().day.at('00:00:01').do(self._save_and_stage_data)
+                schedule.every(1).day.at('00:00:01').do(self._save_and_stage_data)
 
         except Exception as err:
             self.logger.error(err)
