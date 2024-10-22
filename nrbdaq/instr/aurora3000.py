@@ -199,7 +199,8 @@ class Aurora3000:
                 
                 # Return the rounded timestamp followed by the averaged values
                 current_averages = ",".join(f"{avg:.3f}" for avg in averages)
-                self._data = f"{self._data}{dtm.strftime('%Y-%m-%d %H:%M:%S')},{current_averages}\n"
+                # self._data = f"{self._data}{dtm.strftime('%Y-%m-%d %H:%M:%S')},{current_averages}\n"
+                self._data = f"{self._data}{dtm.isoformat(timespec='seconds')},{current_averages}\n"
                 self.logger.info(f"Aurora3000, {current_averages[:60]}[...]")
             return
                 # return f"{dtm.strftime('%Y-%m-%d %H:%M:%S')}," + ",".join(f"{avg:.2f}" for avg in averages)
@@ -222,7 +223,7 @@ class Aurora3000:
                     header = str()
                 else:
                     mode = 'w'
-                    header = 'date,time,ssp1,ssp2,ssp3,sbsp1,sbsp2,sbsp3,sample_temp,enclosure_temp,RH,pressure,major_state,DIO_state\n'
+                    header = 'dtm,ssp1,ssp2,ssp3,sbsp1,sbsp2,sbsp3,sample_temp,enclosure_temp,RH,pressure,major_state,DIO_state\n'
                 
                 with open(file=data_file, mode=mode) as fh:
                     fh.write(header)
