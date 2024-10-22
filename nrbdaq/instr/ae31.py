@@ -36,6 +36,15 @@ class AE31:
             self.reporting_interval = int(config['AE31']['reporting_interval'])
             if not (self.reporting_interval % 60)==0 and self.reporting_interval<=1440:
                 raise ValueError('reporting_interval must be a multiple of 60 and less or equal to 1440 minutes.')
+            header = "dtm,id,date,time,UV370,B470,G520,Y590,R660,IR880,IR950,flow"
+            header = f"{header},UV370_1,UV370_2,UV370_3,UV370_4,,UV370_5,UV370_6"
+            header = f"{header},B470_1,B470_2,B470_3,B470_4,,B470_5,B470_6"
+            header = f"{header},G520_1,G520_2,G520_3,G520_4,,G520_5,G520_6"
+            header = f"{header},Y590_1,Y590_2,Y590_3,Y590_4,,Y590_5,Y590_6"
+            header = f"{header},R660_1,R660_2,R660_3,R660_4,,R660_5,R660_6"
+            header = f"{header},IR880_1,IR880_2,IR880_3,IR880_4,,IR880_5,IR880_6"
+            header = f"{header},IR950_1,IR950_2,IR950_3,IR950_4,,IR950_5,IR950_6\n"
+            self.header = header
 
             self.data_path = os.path.join(root, config['AE31']['data'])
             os.makedirs(self.data_path, exist_ok=True)
@@ -120,29 +129,14 @@ class AE31:
         """
         try:
             if self._data:
-                if self.reporting_interval==1440:
-                    timestamp = datetime.now().strftime('%Y%m%d')
-                elif (self.reporting_interval % 60)==0:
-                    timestamp = datetime.now().strftime('%Y%m%d%H')
-                elif (self.reporting_interval % 10)==0:
-                    timestamp = datetime.now().strftime('%Y%m%d%H')
-                else:
-                    self.logger.error("reporting_interval must be one of 10, 60, 1440.")
-                self.data_file = os.path.join(self.data_path, f"ae31-{timestamp}.csv")
+                self.data_file = os.path.join(self.data_path, f"ae31-{self._file_timestamp_format}.csv")
                 if os.path.exists(self.data_file):
                     mode = 'a'
                     header = ''
                 else:
                     mode = 'w'
-                    header = "dtm,id,date,time,UV370,B470,G520,Y590,R660,IR880,IR950,flow"
-                    header = f"{header},UV370_1,UV370_2,UV370_3,UV370_4,,UV370_5,UV370_6"
-                    header = f"{header},B470_1,B470_2,B470_3,B470_4,,B470_5,B470_6"
-                    header = f"{header},G520_1,G520_2,G520_3,G520_4,,G520_5,G520_6"
-                    header = f"{header},Y590_1,Y590_2,Y590_3,Y590_4,,Y590_5,Y590_6"
-                    header = f"{header},R660_1,R660_2,R660_3,R660_4,,R660_5,R660_6"
-                    header = f"{header},IR880_1,IR880_2,IR880_3,IR880_4,,IR880_5,IR880_6"
-                    header = f"{header},IR950_1,IR950_2,IR950_3,IR950_4,,IR950_5,IR950_6\n"
-                    self.logger.info(f"AE31, Reading data and writing to {self.data_path}/ae31-{timestamp}.csv")
+                    header = self.header
+                    self.logger.info(f"AE31, Reading data and writing to {self.data_path}/ae31-{self._file_timestamp_format}.csv")
                 
                 # open file and write to it
                 with open(file=self.data_file, mode=mode) as fh:
