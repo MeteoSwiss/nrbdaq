@@ -179,7 +179,6 @@ class Aurora3000:
             self._last_timestamp = timestamp
             self._instant_readings.append(values)
             self.logger.debug(reading_str)
-            print(f"current: {reading_str}")
         except Exception as err:
             self.logger.error(err)
 
@@ -202,7 +201,6 @@ class Aurora3000:
                 current_averages = ",".join(f"{avg:.3f}" for avg in averages)
                 self._data = f"{self._data}{dtm.strftime('%Y-%m-%d %H:%M:%S')},{current_averages}\n"
                 self.logger.info(f"Aurora3000, {current_averages[:60]}[...]")
-                print(f"average: {dtm.strftime('%Y-%m-%d %H:%M:%S')},{current_averages}")
             return
                 # return f"{dtm.strftime('%Y-%m-%d %H:%M:%S')}," + ",".join(f"{avg:.2f}" for avg in averages)
         except Exception as err:

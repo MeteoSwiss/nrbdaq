@@ -37,5 +37,24 @@ $ pgrep -f -a "nrbdaq.py"
 ## kill a process by id
 $ kill <pid>
 
+<<<<<<< HEAD
 ## list USB / serial ports
 $ dmesg | grep tty
+=======
+## How-to operate Get red-y MFCs
+1. Install cable PPDM-U driver from /resources
+2. Install get red-y MFC software
+3. Plug in USB cable, check COM port used in device manager
+4. Start get red-y software, select port, search for device, stop search once found
+
+## Setup
+2024-10-22/jkl
+- Aurora3000 
+    - flow controlled by get red-y MFC set to 4 lnpm
+    - dark count found to be 450-500
+    - Wavelength 1 Shtr Count ca 1.1M
+    - Wavelength 2 Shtr Count ca 1.6M
+    - Wavelength 3 Shtr Count ca 1.7M
+- AE31 flow controlled by get red-y set to 3 lnpm
+    - 
+>>>>>>> 933ff3bf245e0136a2440e07991a4298a1de60cc
