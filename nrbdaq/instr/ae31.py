@@ -129,14 +129,15 @@ class AE31:
         """
         try:
             if self._data:
-                self.data_file = os.path.join(self.data_path, f"ae31-{self._file_timestamp_format}.csv")
+                timestamp = datetime.now().strftime(self._file_timestamp_format)               
+                self.data_file = os.path.join(self.data_path, f"ae31-{timestamp}.csv")
                 if os.path.exists(self.data_file):
                     mode = 'a'
                     header = ''
                 else:
                     mode = 'w'
                     header = self.header
-                    self.logger.info(f"AE31, Reading data and writing to {self.data_path}/ae31-{self._file_timestamp_format}.csv")
+                    self.logger.info(f"AE31, Reading data and writing to {self.data_path}/ae31-{timestamp}.csv")
                 
                 # open file and write to it
                 with open(file=self.data_file, mode=mode) as fh:

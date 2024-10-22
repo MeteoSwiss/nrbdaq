@@ -37,10 +37,8 @@ $ pgrep -f -a "nrbdaq.py"
 ## kill a process by id
 $ kill <pid>
 
-<<<<<<< HEAD
 ## list USB / serial ports
 $ dmesg | grep tty
-=======
 ## How-to operate Get red-y MFCs
 1. Install cable PPDM-U driver from /resources
 2. Install get red-y MFC software
@@ -57,4 +55,3 @@ $ dmesg | grep tty
     - Wavelength 3 Shtr Count ca 1.7M
 - AE31 flow controlled by get red-y set to 3 lnpm
     - 
->>>>>>> 933ff3bf245e0136a2440e07991a4298a1de60cc
