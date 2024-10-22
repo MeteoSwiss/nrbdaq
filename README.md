@@ -36,3 +36,6 @@ $ pgrep -f -a "nrbdaq.py"
 
 ## kill a process by id
 $ kill <pid>
+
+## list USB / serial ports
+$ dmesg | grep tty
