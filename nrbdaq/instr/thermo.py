@@ -69,12 +69,9 @@ class Thermo49i:
             if not (self.reporting_interval % 60)==0 and self.reporting_interval<=1440:
                 raise ValueError('reporting_interval must be a multiple of 60 and less or equal to 1440 minutes.')
                    
-            # configure saving, staging and archiving
+            # configure saving, staging and remote transfer
             self.data_path = os.path.join(root, config[name]['data'])
             self.staging_path = os.path.join(root, config[name]['staging'])
-            self.archive_path = os.path.join(root, config[name]['archive'])
-
-            # configure remote transfer
             self.remote_path = config[name]['remote_path']
 
             # initialize data response           
@@ -89,7 +86,6 @@ class Thermo49i:
             # configure folders needed
             os.makedirs(self.data_path, exist_ok=True)
             os.makedirs(self.staging_path, exist_ok=True)
-            os.makedirs(self.archive_path, exist_ok=True)
 
             # configure data acquisition schedule
             schedule.every(int(self._sampling_interval)).minutes.at(':00').do(self.accumulate_lr00)
