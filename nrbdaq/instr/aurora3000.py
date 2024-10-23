@@ -184,7 +184,10 @@ class Aurora3000:
 
 
     def accumulate_averages(self) -> None:
-        """Computes the average of the collected self._instant_readings and returns the result in the specified format."""
+        """
+        Computes the average of the collected self._instant_readings and appends the result to self._data.
+        The timestamp for the average is the last timestamp of the instant readings, rounded to a full minute.
+        """
         try:
             if self._instant_readings:
                 # Stack self._instant_readings and compute mean across columns
@@ -203,7 +206,7 @@ class Aurora3000:
                 self._data = f"{self._data}{dtm.isoformat(timespec='seconds')},{current_averages}\n"
                 self.logger.info(f"Aurora3000, {current_averages[:60]}[...]")
             return
-                # return f"{dtm.strftime('%Y-%m-%d %H:%M:%S')}," + ",".join(f"{avg:.2f}" for avg in averages)
+
         except Exception as err:
             self.logger.error(err)
 
