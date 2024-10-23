@@ -297,21 +297,24 @@ class SFTPClient:
             self.logger.error(err)
 
 
-    def setup_transfer_schedule(self, local_path: str, remote_path: str, remove_on_success: bool=True, transfer_interval: int=60):
+    def setup_transfer_schedules(self, local_path: str, remote_path: str, remove_on_success: bool=True, interval: int=60):
         try:
-            local_path = re.sub(r'(/?\.?\\){1,2}', '/', local_path)
-            remote_path = re.sub(r'(/?\.?\\){1,2}', '/', remote_path)
-            
-            if transfer_interval==60:
-                schedule.every().hour.at('00:10').do(self.transfer_files, local_path, remote_path, remove_on_success)
-            elif (transfer_interval % 60) == 0:
-                interval = int(transfer_interval / 60)
-                hours = [f"{interval*n:02}:00:10" for n in range(23) if interval*n <= 23]
-                for hr in hours:
-                    self.logger.debug(f"hr: {hr}")
-                    schedule.every().day.at(hr).do(self.transfer_files, local_path, remote_path, remove_on_success)
+            # local_path = re.sub(r'(/?\.?\\){1,2}', '/', local_path)
+            # remote_path = re.sub(r'(/?\.?\\){1,2}', '/', remote_path)
+            self.setup_remote_folders(local_path=local_path, remote_path=remote_path)
+
+            if interval==10:
+                minutes = [f"{interval*n:02}" for n in range(6) if interval*n < 6]
+                for minute in minutes:
+                    schedule.every(1).hour.at(f"{minute}:10").do(self.transfer_files, local_path, remote_path, remove_on_success)
+            elif (interval % 60) == 0:
+                hrs = [f"{n:02}:00:10" for n in range(0, 24, interval // 60)]
+                for hr in hrs:
+                    schedule.every(1).day.at(hr).do(self.transfer_files, local_path, remote_path, remove_on_success)
+            elif interval==1440:
+                schedule.every(1).day.at('00:00:10').do(self.transfer_files, local_path, remote_path, remove_on_success)
             else:
-                raise ValueError('transfer_interval must be a multiple of 60 minutes and a maximum of 1440 minutes.')
+                raise ValueError("'interval' must be 10 minutes or a multiple of 60 minutes and a maximum of 1440 minutes.")
             
         except Exception as err:
             self.schedule_logger.error(err)
