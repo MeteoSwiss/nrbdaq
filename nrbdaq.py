@@ -68,8 +68,9 @@ def main():
     # align start with a multiple-of-minute timestamp
     n = 5
     dt = int(time.time()) % (n * 60)
+    logger.info(f"Waiting {dt:>4} seconds before start ...")
     while dt > 0:
-        logger.info(f"Waiting {dt:>4} seconds...", end="\r")
+        print(f"Waiting {dt:>4} seconds...", end="\r")
         time.sleep(1)
         dt -= 1
 
