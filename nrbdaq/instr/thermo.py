@@ -68,6 +68,8 @@ class Thermo49i:
             self.reporting_interval = config[name]['reporting_interval']
             if not (self.reporting_interval % 60)==0 and self.reporting_interval<=1440:
                 raise ValueError('reporting_interval must be a multiple of 60 and less or equal to 1440 minutes.')
+
+            self.header = 'pcdate pctime time date flags o3 hio3 cellai cellbi bncht lmpt o3lt flowa flowb pres\n'                
                    
             # configure saving, staging and remote transfer
             self.data_path = os.path.join(root, config[name]['data'])
@@ -398,7 +400,6 @@ class Thermo49i:
     def _save_data(self) -> None:
         try:
             data_file = str()
-            self.data_file = str()
             if self._data:
                 # create appropriate file name and write mode
                 timestamp = datetime.now().strftime(self._file_timestamp_format)               
@@ -406,16 +407,13 @@ class Thermo49i:
 
                 # configure file mode, open file and write to it
                 if os.path.exists(self.data_file):
-                    mode = 'a'
-                    header = str()
+                    with open(file=data_file, mode='a') as fh:
+                        fh.write(self._data)
                 else:
-                    mode = 'w'
-                    header = 'pcdate pctime time date flags o3 hio3 cellai cellbi bncht lmpt o3lt flowa flowb pres\n'
-                
-                with open(file=data_file, mode=mode) as fh:
-                    fh.write(header)
-                    fh.write(self._data)
-                    self.logger.info(f"file saved: {data_file}")
+                    with open(file=data_file, mode='w') as fh:
+                        fh.write(self.header)
+                        fh.write(self._data)
+                self.logger.info(f"file saved: {data_file}")
             
                 # reset self._data
                 self._data = str()
