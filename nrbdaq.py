@@ -62,8 +62,7 @@ def main():
                                   interval=neph.reporting_interval)  
 
     # list all jobs
-    for job in schedule.get_jobs():
-        logger.info(job)
+    logger.info(schedule.get_jobs())
 
     # align start with a multiple-of-minute timestamp
     n = 5
