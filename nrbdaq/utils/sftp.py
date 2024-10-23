@@ -186,7 +186,7 @@ class SFTPClient:
                         try:
                             sftp.mkdir(root, mode=16877)
                         except OSError as err:
-                            self.logger.error(f"Could not create '{root}', error: {err}")
+                            self.logger.error(f"Could not create '{root}', error: {err}. Maybe path exists already?")
                             pass
                     sftp.close()
 
