@@ -79,6 +79,9 @@ class Thermo49i:
             # initialize data response           
             self._data = str()
 
+            # initialize data_file (path)
+            self.data_file = str()
+            
         except Exception as err:
             self.logger.error(err)
 
@@ -406,7 +409,7 @@ class Thermo49i:
                 data_file = os.path.join(self.data_path, f"49i-{timestamp}.dat")
 
                 # configure file mode, open file and write to it
-                if os.path.exists(self.data_file):
+                if os.path.exists(data_file):
                     with open(file=data_file, mode='a') as fh:
                         fh.write(self._data)
                 else:
@@ -414,7 +417,7 @@ class Thermo49i:
                         fh.write(self.header)
                         fh.write(self._data)
                 self.logger.info(f"file saved: {data_file}")
-            
+
                 # reset self._data
                 self._data = str()
 
