@@ -10,10 +10,8 @@ import os
 import re
 from xmlrpc.client import Boolean
 
-import colorama
 import paramiko
 import schedule
-# import sockslib
 
 
 class SFTPClient:
@@ -30,10 +28,6 @@ class SFTPClient:
     - remove_remote_item():
     - transfer_files(): transfer files,  optionally removing files from source
     """
-    staging = None
-    key = None
-    usr = None
-    host = None
 
     def __init__(self, config: dict):
         """
@@ -46,8 +40,6 @@ class SFTPClient:
                     config['sftp']['local_path']: relative path to local source (= staging)
                     config['sftp']['remote_path']: (absolute?) root of remote destination
         """
-        colorama.init(autoreset=True)
-
         try:
             # configure logging
             _logger = f"{os.path.basename(config['logging']['file'])}".split('.')[0]
@@ -63,11 +55,12 @@ class SFTPClient:
             self.key = paramiko.RSAKey.from_private_key_file(\
                 os.path.expanduser(config['sftp']['key']))
             
-            # # configure client proxy if needed
-            # if self.config['sftp']['proxy']['socks5']:
-            #     with sockslib.SocksSocket() as sock:
-            #         sock.set_proxy((self.config['sftp']['proxy']['socks5'],
-            #                         self.config['sftp']['proxy']['port']), sockslib.Socks.SOCKS5)
+            # configure client proxy if needed
+            if config['sftp']['proxy']['socks5']:
+                import sockslib
+                with sockslib.SocksSocket() as sock:
+                    sock.set_proxy((config['sftp']['proxy']['socks5'],
+                                    config['sftp']['proxy']['port']), sockslib.Socks.SOCKS5)
 
             # configure local source
             self.local_path = os.path.join(os.path.expanduser(config['root']), config['sftp']['local_path'])
@@ -114,12 +107,15 @@ class SFTPClient:
             local_path = self.local_path
 
         try:
-            root, dirs, files = os.walk(local_path)
-            files = [os.path.join(root, file) for file in files]
+            files = []
+            for root, dirs, filenames in os.walk(local_path):
+                for file in filenames:
+                    files.append(os.path.join(root, file))
             return files
 
         except Exception as err:
             self.logger.error(err)
+			return list()
 
 
     def remote_item_exists(self, remote_path: str) -> Boolean:
@@ -136,9 +132,14 @@ class SFTPClient:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
                 with ssh.open_sftp() as sftp:
-                    return True if sftp.stat(remote_path).st_size > 0 else False
+                    try:
+                        sftp.stat(remote_path)
+                        return True
+                    except FileNotFoundError:
+                        return False
         except Exception as err:
             self.logger.error(err)
+			return False
 
 
     def list_remote_items(self, remote_path: str='.'):
@@ -195,7 +196,7 @@ class SFTPClient:
 
 
     def put_file(self, local_path: str, remote_path: str):
-        """Send a file to a remotehost using SFTP and SSH.
+        """Send a file to a remote host using SFTP and SSH.
 
         Args:
             local_path (str): full path to local file
@@ -204,7 +205,7 @@ class SFTPClient:
         try:
             if os.path.exists(local_path):
                 remote_path = re.sub(r'(/?\.?\\){1,2}', '/', remote_path)
-                msg = f"sftp, .put {local_path} > {remote_path}"
+                msg = f"sftp, .put_file {local_path} > {remote_path}"
                 with paramiko.SSHClient() as ssh:
                     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                     ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
@@ -222,21 +223,20 @@ class SFTPClient:
 
 
     def remove_remote_item(self, remote_path: str) -> None:
-        """Remove a file or (empty) directory on a remotehost using SFTP and SSH.
+        """Remove a file or (empty) directory on a remote host using SFTP and SSH.
 
         Args:
             remote_path (str): relative path to remote item
         """
         try:
-            if self.remote_item_exists(remoteitem=remote_path):
-                msg = f"sftp, .remove_file {remote_path}"
+            if self.remote_item_exists(remote_path):
                 with paramiko.SSHClient() as ssh:
                     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                     ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
                     with ssh.open_sftp() as sftp:
-                        res = sftp.remove(remote_path)
+                        sftp.remove(remote_path)
                         sftp.close()
-                    self.logger.info(msg)
+                    self.logger.info(f".remove_remote_item {remote_path}")
             else:
                 raise ValueError("remote_path does not exist.")
         except Exception as err:
