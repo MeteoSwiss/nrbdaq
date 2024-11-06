@@ -33,7 +33,7 @@ def main():
     # setup Nairobi AVO data download, staging and transfer
     data_path = os.path.join(os.path.expanduser(config['root']), config['AVO']['data'])
     staging_path = os.path.join(os.path.expanduser(config['root']), config['AVO']['staging'])
-    remote_path = os.path.join(sftp.remote_path, config['AVO']['remote_path'])
+    # remote_path = os.path.join(sftp.remote_path, config['AVO']['remote_path'])
     download_interval = config['AVO']['download_interval']
     hours = [f"{download_interval*n:02}:00" for n in range(23) if download_interval*n <= 23]
     for hr in hours:
