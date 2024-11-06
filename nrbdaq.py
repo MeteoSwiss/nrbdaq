@@ -20,7 +20,8 @@ def main():
 
     # setup sftp client
     sftp = SFTPClient(config=config)
-
+    print(sftp.__dict__)
+    
     # setup AE31 data acquisition and data transfer
     ae31 = AE31(config=config)
     ae31.setup_schedules()
