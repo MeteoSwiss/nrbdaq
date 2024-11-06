@@ -244,7 +244,7 @@ class Aurora3000:
             if self.data_file:
                 os.makedirs(self.staging_path, exist_ok=True)
 
-                archive = os.path.join(self.staging_path, os.path.basename(self.data_file).replace('.dat', '.zip'))
+                archive = os.path.join(self.staging_path, os.path.basename(self.data_file).replace('.csv', '.zip'))
                 with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as zf:
                     zf.write(self.data_file, os.path.basename(self.data_file))
                     self.logger.info(f"file staged: {archive}")
