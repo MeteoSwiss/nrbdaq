@@ -20,15 +20,15 @@ def main():
 
     # setup sftp client
     sftp = SFTPClient(config=config)
-    print(sftp.__dict__)
-    
+    logger.debug(sftp.__dict__)
+
     # setup AE31 data acquisition and data transfer
     ae31 = AE31(config=config)
     ae31.setup_schedules()
     remote_path = os.path.join(sftp.remote_path, ae31.remote_path)
-    sftp.setup_transfer_schedules(local_path=ae31.staging_path,
-                                  remote_path=remote_path,
-                                  interval=ae31.reporting_interval)  
+    # sftp.setup_transfer_schedules(local_path=ae31.staging_path,
+    #                               remote_path=remote_path,
+    #                               interval=ae31.reporting_interval)  
 
     # setup Nairobi AVO data download, staging and transfer
     data_path = os.path.join(os.path.expanduser(config['root']), config['AVO']['data'])
@@ -41,26 +41,26 @@ def main():
                                        urls={'url_nairobi': config['AVO']['urls']['url_nairobi']}, 
                                        file_path=data_path, 
                                        staging=staging_path)
-    sftp.setup_transfer_schedules(local_path=staging_path,
-                                  remote_path=remote_path,
-                                  interval=download_interval)  
+    # sftp.setup_transfer_schedules(local_path=staging_path,
+    #                               remote_path=remote_path,
+    #                               interval=download_interval)  
 
     # setup Thermo 49i data acquisition and data transfer
     thermo49i = Thermo49i(config=config)
     thermo49i.setup_schedules()
     remote_path = os.path.join(sftp.remote_path, thermo49i.remote_path)
-    sftp.setup_transfer_schedules(local_path=thermo49i.staging_path,
-                                  remote_path=remote_path,
-                                  interval=thermo49i.reporting_interval)  
+    # sftp.setup_transfer_schedules(local_path=thermo49i.staging_path,
+    #                               remote_path=remote_path,
+    #                               interval=thermo49i.reporting_interval)  
 
     # setup Aurora3000
     neph = Aurora3000(config=config)
     neph.setup_schedules()
     logger.info(f"get_instrument_id: {neph.get_instrument_id()}")
     remote_path = os.path.join(sftp.remote_path, neph.remote_path)
-    sftp.setup_transfer_schedules(local_path=neph.staging_path,
-                                  remote_path=remote_path,
-                                  interval=neph.reporting_interval)  
+    # sftp.setup_transfer_schedules(local_path=neph.staging_path,
+    #                               remote_path=remote_path,
+    #                               interval=neph.reporting_interval)  
 
     # list all jobs
     logger.info(schedule.get_jobs())
