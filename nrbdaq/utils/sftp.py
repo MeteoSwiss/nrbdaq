@@ -8,7 +8,7 @@ Manage file transfer. Currently, sftp transfer to MeteoSwiss is supported.
 import logging
 import os
 import re
-from xmlrpc.client import Boolean
+# from xmlrpc.client import Boolean
 
 import paramiko
 import schedule
@@ -115,10 +115,10 @@ class SFTPClient:
 
         except Exception as err:
             self.logger.error(err)
-			return list()
+            return list()
 
 
-    def remote_item_exists(self, remote_path: str) -> Boolean:
+    def remote_item_exists(self, remote_path: str) -> bool:
         """Check on remote server if an item exists. Assume this indicates successful transfer.
 
         Args:
@@ -139,10 +139,10 @@ class SFTPClient:
                         return False
         except Exception as err:
             self.logger.error(err)
-			return False
+            return False
+        
 
-
-    def list_remote_items(self, remote_path: str='.'):
+    def list_remote_items(self, remote_path: str='.') -> list[str]:
         try:
             with paramiko.SSHClient() as ssh:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -152,6 +152,7 @@ class SFTPClient:
 
         except Exception as err:
             self.logger.error(err)
+            return list()
 
 
     def setup_remote_folders(self, local_path: str=str(), remote_path: str=str()) -> None:
