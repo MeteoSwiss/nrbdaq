@@ -46,13 +46,13 @@ class AE31:
             header = f"{header},IR950_1,IR950_2,IR950_3,IR950_4,,IR950_5,IR950_6\n"
             self.header = header
 
-            self.data_path = os.path.join(root, config['AE31']['data'])
+            self.data_path = os.path.join(root, config['data'], config['AE31']['data_path'])
             os.makedirs(self.data_path, exist_ok=True)
             # schedule.every(int(self.sampling_interval)).minutes.at(':00').do(self.accumulate_data)
             # schedule.every(int(self.sampling_interval)).minutes.at(':01').do(self._save_data)
                      
             # configure staging
-            self.staging_path = os.path.join(root, config['AE31']['staging'])
+            self.staging_path = os.path.join(root, config['staging'], config['AE31']['staging_path'])
             # os.makedirs(self.staging_path, exist_ok=True)
             # if self.reporting_interval==1440:
             #     schedule.every(1).day.at('00:00:05').do(self._save_and_stage_data)

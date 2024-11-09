@@ -8,6 +8,9 @@ logging:
   # level_file: ERROR
   level_file: ERROR
 
+# data path
+data: data
+
 # staging area for transfer, relative to root
 staging: staging
 
@@ -28,8 +31,8 @@ AE31:
   serial_timeout: 270
   sampling_interval: 5
   reporting_interval: 60
-  data: data/ae31
-  staging: staging/ae31
+  data_path: ae31
+  staging_path: ae31
   remote_path: ae31
   # archive: archive/ae31
 
@@ -43,8 +46,8 @@ Aurora3000:
   serial_timeout: 1
   sampling_interval: 1
   reporting_interval: 60
-  data: data/aurora3000
-  staging: staging/aurora3000
+  data_path: aurora3000
+  staging_path: aurora3000
   remote_path: aurora3000
 
 AVO:
@@ -55,8 +58,8 @@ AVO:
     url_mogogosiek: https://device.iqair.com/v2/64b78e3ed49ffdbbf25ce862
     url_nairobi: https://device.iqair.com/v2/64b79227b6f7b1125b019970
     url_bomet: https://device.iqair.com/v2/64ad7a78e939e8f45b826839
-  data: data/avo
-  staging: staging/avo
+  data_path: avo
+  staging_path: avo
   remote_path: avo
   download_interval: 360
 

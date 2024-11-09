@@ -64,9 +64,11 @@ class SFTPClient:
             # configure local source
             self.local_path = os.path.join(os.path.expanduser(config['root']), config['staging'])
             # self.local_path = re.sub(r'(/?\.?\\){1,2}', '/', self.local_path)
+            self.logger.debug(f"__init__: {self.local_path}")
 
             # configure remote destination
             self.remote_path = config['sftp']['remote_path']
+            self.logger.debug(f"__init__: {self.remote_path}")
 
         except Exception as err:
             self.logger.error(err)

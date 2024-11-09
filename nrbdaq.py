@@ -20,6 +20,7 @@ def main():
 
     # setup sftp client
     sftp = SFTPClient(config=config)
+    logger.debug(f"sftp.remote_path: {sftp.remote_path}")
 
     # setup AE31 data acquisition and data transfer
     ae31 = AE31(config=config)
@@ -30,8 +31,8 @@ def main():
                                   interval=ae31.reporting_interval)  
 
     # setup Nairobi AVO data download, staging and transfer
-    data_path = os.path.join(os.path.expanduser(config['root']), config['AVO']['data'])
-    staging_path = os.path.join(os.path.expanduser(config['root']), config['AVO']['staging'])
+    data_path = os.path.join(os.path.expanduser(config['root']), config['data'], config['AVO']['data_path'])
+    staging_path = os.path.join(os.path.expanduser(config['root']), config['staging'], config['AVO']['staging_path'])
     remote_path = os.path.join(sftp.remote_path, config['AVO']['remote_path'])
     download_interval = config['AVO']['download_interval']
     hours = [f"{download_interval*n:02}:00" for n in range(23) if download_interval*n <= 23]

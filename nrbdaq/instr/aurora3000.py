@@ -39,8 +39,8 @@ class Aurora3000:
 
             # configure data storage, staging and remote transfer
             root = os.path.expanduser(config['root'])
-            self.data_path = os.path.join(root, config['Aurora3000']['data'])
-            self.staging_path = os.path.join(root, config['Aurora3000']['staging'])
+            self.data_path = os.path.join(root, config['data'], config['Aurora3000']['data_path'])
+            self.staging_path = os.path.join(root, config['staging'], config['Aurora3000']['staging_path'])
             self.remote_path = config['Aurora3000']['remote_path']
            
             # configure file header

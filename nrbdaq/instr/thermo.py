@@ -72,8 +72,8 @@ class Thermo49i:
             self.header = 'pcdate pctime time date flags o3 hio3 cellai cellbi bncht lmpt o3lt flowa flowb pres\n'                
                    
             # configure saving, staging and remote transfer
-            self.data_path = os.path.join(root, config[name]['data'])
-            self.staging_path = os.path.join(root, config[name]['staging'])
+            self.data_path = os.path.join(root, config['data'], config[name]['data_path'])
+            self.staging_path = os.path.join(root, config['staging'], config[name]['staging_path'])
             self.remote_path = config[name]['remote_path']
 
             # initialize data response           
