@@ -72,3 +72,17 @@ def setup_logging(file: str) -> logging:
     # logger.addHandler(mqtt_handler)
 
     return logger
+
+
+def seconds_to_next_n_minutes(n: int):
+    # Get the current time in seconds since the epoch
+    now = time.time()
+    
+    # Calculate minutes and seconds of the current time
+    minutes = int(now // 60) % 60
+    seconds = int(now % 60)
+    
+    # Calculate remaining time to the next n-minute mark
+    minutes_to_next_n_minutes = n - (minutes % n)
+    remaining_seconds = (minutes_to_next_n_minutes * 60) - seconds
+    return remaining_seconds

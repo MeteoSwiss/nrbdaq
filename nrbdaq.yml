@@ -1,6 +1,23 @@
 # NB: local absolute or relative path for data on disk
 root: ~/Documents/nrbdaq
 
+logging:
+# NB: specify file relative to root
+  file: nrbdaq.log
+  level_console: INFO
+  # level_file: ERROR
+  level_file: ERROR
+
+# staging area for transfer, relative to root
+staging: staging
+
+sftp:
+# NB: specify local_source relative to root
+  host: sftp.meteoswiss.ch
+  usr: gaw_kenya
+  key: ~/.ssh/private-open-ssh-4096-mkn.ppk
+  remote_path: './nrb'
+
 AE31:
 # NB: Configure AE31 to use the default settings (9600, 8, 1, N).
 # NB: [serial_timeout] seconds
@@ -90,21 +107,6 @@ AVO:
   staging: staging/49i
   remote_path: 49i
   # archive: archive/49i
-
-logging:
-# NB: specify file relative to root
-  file: nrbdaq.log
-  level_console: INFO
-  # level_file: ERROR
-  level_file: DEBUG
-
-sftp:
-# NB: specify local_source relative to root
-  host: sftp.meteoswiss.ch
-  usr: gaw_kenya
-  key: ~/.ssh/private-open-ssh-4096-mkn.ppk
-  local_path: staging
-  remote_path: './nrb'
 
 # future
 # [dxs]
