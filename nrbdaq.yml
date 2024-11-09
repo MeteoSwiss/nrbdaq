@@ -16,7 +16,7 @@ sftp:
   host: sftp.meteoswiss.ch
   usr: gaw_kenya
   key: ~/.ssh/private-open-ssh-4096-mkn.ppk
-  remote_path: './nrb'
+  remote_path: ./nrb
 
 AE31:
 # NB: Configure AE31 to use the default settings (9600, 8, 1, N).
