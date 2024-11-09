@@ -106,8 +106,8 @@ AVO:
   get_data: lr00
   sampling_interval: 1
   reporting_interval: 60
-  data: data/49i
-  staging: staging/49i
+  data_path: 49i
+  staging_path: 49i
   remote_path: 49i
   # archive: archive/49i
 
