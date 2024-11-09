@@ -55,11 +55,11 @@ class SFTPClient:
                 os.path.expanduser(config['sftp']['key']))
             
             # configure client proxy if needed
-            if config['sftp']['proxy']['socks5']:
-                import sockslib
-                with sockslib.SocksSocket() as sock:
-                    sock.set_proxy((config['sftp']['proxy']['socks5'],
-                                    config['sftp']['proxy']['port']), sockslib.Socks.SOCKS5)
+            # if config['sftp']['proxy']['socks5']:
+            #     import sockslib
+            #     with sockslib.SocksSocket() as sock:
+            #         sock.set_proxy((config['sftp']['proxy']['socks5'],
+            #                         config['sftp']['proxy']['port']), sockslib.Socks.SOCKS5)
 
             # configure local source
             self.local_path = os.path.join(os.path.expanduser(config['root']), config['staging'])
