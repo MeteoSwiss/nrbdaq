@@ -332,7 +332,7 @@ class SFTPClient:
                     top = local_path
                     for root, dirs, files in os.walk(top=top):
                         for file in files:
-                            local_file = os.path.join(root, file).replace('\\', '/').strip('/')
+                            local_file = os.path.join(root, file).replace('\\', '/').rstrip('/')
                             parts = root.replace('\\', '/').replace(local_path, '').strip('/')
                             remote_file = f"{remote_path}/{parts}/{file}"
                             
