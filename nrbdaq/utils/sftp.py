@@ -8,7 +8,6 @@ Manage file transfer. Currently, sftp transfer to MeteoSwiss is supported.
 import logging
 import os
 import re
-# from xmlrpc.client import Boolean
 
 import paramiko
 import schedule
@@ -45,7 +44,7 @@ class SFTPClient:
             _logger = f"{os.path.basename(config['logging']['file'])}".split('.')[0]
             self.logger = logging.getLogger(f"{_logger}.{__name__}")
             self.schedule_logger = logging.getLogger(f"{_logger}.schedule")
-            self.schedule_logger.setLevel(level=logging.DEBUG)       
+            self.schedule_logger.setLevel(level=logging.DEBUG)
             self.logger.info("Initialize SFTPClient")
 
             # sftp connection settings
@@ -63,7 +62,6 @@ class SFTPClient:
 
             # configure local source
             self.local_path = os.path.join(os.path.expanduser(config['root']), config['staging'])
-            # self.local_path = re.sub(r'(/?\.?\\){1,2}', '/', self.local_path)
             self.logger.debug(f"__init__: {self.local_path}")
 
             # configure remote destination
@@ -227,8 +225,8 @@ class SFTPClient:
             self.logger.error(err)
 
 
-    def remove_remote_item(self, remote_path: str) -> str:
-        """												   
+    def remove_remote_item(self, remote_path: str) -> None:
+        """
         Remove a file or prune (the last part of remote_path, not iterative) an (empty) directory from a remote host using SFTP and SSH.
 
         Args:
@@ -257,13 +255,11 @@ class SFTPClient:
                                 self.logger.error(err)
                         self.logger.info(f"remove_remote_item {remote_path}")
                         sftp.close()
-                return remote_path        
-            
+
             else:
                 raise ValueError("remove_remote_item: remote_path does not exist.")
         except Exception as err:
             self.logger.error(f"remove_remote_item: {err}")
-            return str()
 
 
     def setup_remote_path(self, remote_path: str) -> str:
@@ -316,6 +312,7 @@ class SFTPClient:
             remove_on_success (bool, optional): Remove successfully transfered files from local_path?. Defaults to True.
         """
         try:
+            self.transfered = []
             if not local_path:
                 local_path = self.local_path
 
@@ -343,16 +340,18 @@ class SFTPClient:
 												 
                             attr = sftp.put(localpath=local_file, remotepath=remote_file, confirm=True)
                             self.logger.debug(f"put {local_file} > {remote_file}")
+                            self.transfered.append(file)
 
                             if remove_on_success:
 																								  
-                                local_size = os.stat(local_path).st_size
+                                local_size = os.stat(local_file).st_size
                                 remote_size = attr.st_size
                                 if remote_size == local_size:
-                                    os.remove(local_path)
+                                    os.remove(local_file)
                                 else:
                                     self.logger.warning(f"local file size: {local_size}, remote file: {remote_size} differ. Did not remove {local_file}.")
-
+                return
+                            
         except Exception as err:
             self.logger.error(f"transfer_files: {local_path} > {remote_path}: {err}")
 
