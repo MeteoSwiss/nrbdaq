@@ -141,7 +141,7 @@ class AE31:
                 
                 # open file and write to it
                 with open(file=self.data_file, mode=mode) as fh:
-                    fh.write(f"{header}{self._dtm},{self._data}\n")
+                    fh.write(f"{header}{self._data}\n")
 
                 # reset self._data
                 self._data = str()
