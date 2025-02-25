@@ -110,8 +110,8 @@ class AE31:
         try:
             with serial.Serial(self._serial_port, 9600, 8, 'N', 1, int(self._serial_timeout)) as ser:
                 self._dtm = datetime.now().isoformat(timespec='seconds')
-                _ = f"{ser.readline().decode('ascii').strip()}\n"
-                self._data = f"{self._data}{self._dtm},{_}"
+                _ = f"{self._dtm},{ser.readline().decode('ascii').strip()}\n"
+                self._data = f"{self._data}{_}"
                 self.logger.info(f"AE31, {_[:60]} [...]"),
             return
 
