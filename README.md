@@ -1,5 +1,21 @@
 # nrbdaq
-DAQ for Nairobi GAW station. Intended for deployment on a Raspberry Pi 4.
+DAQ for Nairobi GAW station. Intended for deployment on a Raspberry Pi (>=4).
+
+# RPI setup
+## OS
+source: https://www.tomshardware.com/reviews/raspberry-pi-headless-setup-how-to,6028.html
+1. Download RPI imager from https://www.raspberrypi.com/software/ and install OS.
+2. Click Edit Settings from the pop-up.
+3. Fill in all the fields on the General tab: hostname, username / password, wireless LAN (if you plan to use wifi, and locale settings.
+4. On the Services tab, toggle enable SSH to on and select "Use password authentication."  Then click Save.
+5. Click Yes to apply OS customization settings.
+6. Pop SD card into the Pi and power it up. It should connect to the LAN using wifi. To verify, we need to open an SSH connection. For ease of use, we will also use Raspberry Connect.
+
+## Raspberry Connect
+1. Open a terminal
+2. $ ssh <ip>
+3. $ sudo apt update
+4. $ sudo apt install --upgrade ...
 
 # setup crontab for automatic execution like so ...
 $ crontab -e
@@ -22,11 +38,11 @@ $ sudo systemctl enable nrbdaq.service
 $ sudo journalctl -p err --since "2024-08-27" --until "2024-08-29"
     show all journal entries of level ERROR in specified period
 
-$ systemctl status cron.service	
+$ systemctl status cron.service
     show status of cron
 
 $ ps [aux]
-    show active processes 
+    show active processes
     [a: displays information about other users' processes as well as your own.
      u: displays the processes belonging to the specified usernames.
      x: includes processes that do not have a controlling terminal.]
@@ -47,11 +63,11 @@ $ dmesg | grep tty
 
 ## Setup
 2024-10-22/jkl
-- Aurora3000 
+- Aurora3000
     - flow controlled by get red-y MFC set to 4 lnpm
     - dark count found to be 450-500
     - Wavelength 1 Shtr Count ca 1.1M
     - Wavelength 2 Shtr Count ca 1.6M
     - Wavelength 3 Shtr Count ca 1.7M
 - AE31 flow controlled by get red-y set to 3 lnpm
-    - 
+    -
