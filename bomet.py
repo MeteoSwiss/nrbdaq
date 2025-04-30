@@ -30,7 +30,7 @@ def main():
         schedule.every(1).day.at(hr).do(avo.download_multiple,
                                        urls={'url_nairobi': config['AVO']['urls']['url_nairobi'],
                                              'url_mogogosiek': config['AVO']['urls']['url_mogogosiek'],
-                                             'url_huduma': config['AVO']['urls']['url_huduma']},
+                                             'url_bomet': config['AVO']['urls']['url_bomet']},
                                        file_path=data_path,
                                        staging=staging_path)
     # sftp.setup_transfer_schedules(local_path=staging_path,
