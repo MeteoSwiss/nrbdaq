@@ -45,6 +45,10 @@ def main():
     #                               remote_path=remote_path,
     #                               interval=thermo49i.reporting_interval)
 
+    # get and set configuration
+    thermo49i.get_config()
+    thermo49i.set_config()
+
     # list all jobs
     logger.info(schedule.get_jobs())
 
