@@ -48,7 +48,7 @@ AVO:
   id: 49
   serial_number: 49I-B1NAA-12103910681
   socket:
-    host: 172.16.11.xxx
+    host: 192.168.100.49
     port: 9880
     timeout: 5
     sleep: 0.1
