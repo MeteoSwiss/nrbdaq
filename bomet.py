@@ -46,8 +46,11 @@ def main():
     #                               interval=thermo49i.reporting_interval)
 
     # get and set configuration
-    thermo49i.get_config()
     thermo49i.set_config()
+    thermo49i.get_config()
+
+    # set datetime
+    thermo49i.set_datetime()
 
     # list all jobs
     logger.info(schedule.get_jobs())
