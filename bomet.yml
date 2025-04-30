@@ -46,7 +46,7 @@ AVO:
 # NB: [reporting_interval] minutes. How often should files be saved, staged and transfered?
 # NB: specify data, staging, archive relative to root
   id: 49
-  serial_number: 49I-B1NAA-12103910681
+  serial_number: wrong:49I-B1NAA-12103910681
   socket:
     host: 192.168.100.49
     port: 9880
