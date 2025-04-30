@@ -11,8 +11,8 @@ logging:
 # data path
 data: data
 
-# # staging area for transfer, relative to root
-# staging: staging
+# staging area for transfer, relative to root
+staging: staging
 
 # sftp:
 # # NB: specify local_source relative to root
