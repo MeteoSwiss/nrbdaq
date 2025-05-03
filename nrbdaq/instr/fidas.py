@@ -153,7 +153,7 @@ class FIDAS:
         self.df_minute = pl.concat([self.df_minute, median_row], how="diagonal")
         self.raw_records.clear()
 
-        self.logger.info(f"[.compute_minute_median] df_minute contains {len(self.df_minute)} rows.")
+        self.logger.info(f"[.compute_minute_median] row added: {median_row[:80]}")
         self.logger.debug(f"[.compute_minute_median] {median_row}")
 
     def save_hourly(self):
