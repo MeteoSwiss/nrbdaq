@@ -1,0 +1,108 @@
+---------------------------------------------------------------------------
+TypeError                                 Traceback (most recent call last)
+Cell In[1], line 7
+      5 with FIDAS(config=config) as fidas:
+      6     if fidas:
+----> 7         fidas.run()
+
+File ~/git/nrbdaq/nrbdaq/instr/fidas.py:185, in FIDAS.run(self)
+    183     self.logger.info(schedule.get_jobs())
+    184     while True:
+--> 185         schedule.run_pending()
+    186         time.sleep(1)
+    187 except KeyboardInterrupt:
+
+File ~/git/nrbdaq/.venv/lib/python3.11/site-packages/schedule/__init__.py:854, in run_pending()
+    850 def run_pending() -> None:
+    851     """Calls :meth:`run_pending <Scheduler.run_pending>` on the
+    852     :data:`default scheduler instance <default_scheduler>`.
+    853     """
+--> 854     default_scheduler.run_pending()
+
+File ~/git/nrbdaq/.venv/lib/python3.11/site-packages/schedule/__init__.py:101, in Scheduler.run_pending(self)
+     99 runnable_jobs = (job for job in self.jobs if job.should_run)
+    100 for job in sorted(runnable_jobs):
+--> 101     self._run_job(job)
+
+File ~/git/nrbdaq/.venv/lib/python3.11/site-packages/schedule/__init__.py:173, in Scheduler._run_job(self, job)
+    172 def _run_job(self, job: "Job") -> None:
+--> 173     ret = job.run()
+    174     if isinstance(ret, CancelJob) or ret is CancelJob:
+    175         self.cancel_job(job)
+
+File ~/git/nrbdaq/.venv/lib/python3.11/site-packages/schedule/__init__.py:691, in Job.run(self)
+    688     return CancelJob
+    690 logger.debug("Running job %s", self)
+--> 691 ret = self.job_func()
+    692 self.last_run = datetime.datetime.now()
+    693 self._schedule_next_run()
+
+File ~/git/nrbdaq/nrbdaq/instr/fidas.py:131, in FIDAS.compute_minute_median(self)
+    128     self.logger.debug("[.compute_minute_median] self.raw_records is empty.")
+    129     return
+--> 131 df = pl.DataFrame(self.raw_records)
+    132 value_cols = [col for col in df.columns if col not in {"id", "checksum"} and df.schema[col] in {pl.Float64, pl.Float32}]
+    134 median_row = df.select([pl.median(col).alias(col) for col in value_cols])
+
+File ~/git/nrbdaq/.venv/lib/python3.11/site-packages/polars/dataframe/frame.py:375, in DataFrame.__init__(self, data, schema, schema_overrides, strict, orient, infer_schema_length, nan_to_null)
+    366     self._df = dict_to_pydf(
+    367         data,
+    368         schema=schema,
+   (...)    371         nan_to_null=nan_to_null,
+    372     )
+    374 elif isinstance(data, (list, tuple, Sequence)):
+--> 375     self._df = sequence_to_pydf(
+    376         data,
+    377         schema=schema,
+    378         schema_overrides=schema_overrides,
+    379         strict=strict,
+    380         orient=orient,
+    381         infer_schema_length=infer_schema_length,
+    382         nan_to_null=nan_to_null,
+    383     )
+    385 elif isinstance(data, pl.Series):
+    386     self._df = series_to_pydf(
+    387         data, schema=schema, schema_overrides=schema_overrides, strict=strict
+    388     )
+
+File ~/git/nrbdaq/.venv/lib/python3.11/site-packages/polars/_utils/construction/dataframe.py:460, in sequence_to_pydf(data, schema, schema_overrides, strict, orient, infer_schema_length, nan_to_null)
+    457 if not data:
+    458     return dict_to_pydf({}, schema=schema, schema_overrides=schema_overrides)
+--> 460 return _sequence_to_pydf_dispatcher(
+    461     data[0],
+    462     data=data,
+    463     schema=schema,
+    464     schema_overrides=schema_overrides,
+    465     strict=strict,
+    466     orient=orient,
+    467     infer_schema_length=infer_schema_length,
+    468     nan_to_null=nan_to_null,
+    469 )
+
+File /usr/lib/python3.11/functools.py:909, in singledispatch.<locals>.wrapper(*args, **kw)
+    905 if not args:
+    906     raise TypeError(f'{funcname} requires at least '
+    907                     '1 positional argument')
+--> 909 return dispatch(args[0].__class__)(*args, **kw)
+
+File ~/git/nrbdaq/.venv/lib/python3.11/site-packages/polars/_utils/construction/dataframe.py:711, in _sequence_of_dict_to_pydf(first_element, data, schema, schema_overrides, strict, infer_schema_length, **kwargs)
+    702 column_names, schema_overrides = _unpack_schema(
+    703     schema, schema_overrides=schema_overrides
+    704 )
+    705 dicts_schema = (
+    706     _include_unknowns(schema_overrides, column_names or list(schema_overrides))
+    707     if column_names
+    708     else None
+    709 )
+--> 711 pydf = PyDataFrame.from_dicts(
+    712     data,
+    713     dicts_schema,
+    714     schema_overrides,
+    715     strict=strict,
+    716     infer_schema_length=infer_schema_length,
+    717 )
+    719 # TODO: we can remove this `schema_overrides` block completely
+    720 #  once https://github.com/pola-rs/polars/issues/11044 is fixed
+    721 if schema_overrides:
+
+TypeError: 'int' object cannot be converted to 'PyString'
