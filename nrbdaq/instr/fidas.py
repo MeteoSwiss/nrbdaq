@@ -180,7 +180,7 @@ class FIDAS:
 
     def run(self):
         try:
-            self.logger.debug(schedule.get_jobs())
+            self.logger.info(schedule.get_jobs())
             while True:
                 schedule.run_pending()
                 time.sleep(1)
