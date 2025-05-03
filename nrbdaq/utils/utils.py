@@ -36,20 +36,16 @@ def load_config(config_file: str) -> configparser.ConfigParser:
         print("Extension of config file not recognized!)")
     return config
 
-class WriteToLogfile(logging.Filter):
-    def filter(self, record):
-        return getattr(record, 'force_to_file', False)
-
-
-def setup_logging(file: str) -> logging:
+def setup_logging(file: str, level_console:int=20, level_file:int=40) -> logging.Logger:
     """Setup the main logging device
 
     Args:
         file (str): full path to log file
 
     Returns:
-        logging: a logger object
+        logging.Logger: a logger object
     """
+
     file_path = os.path.dirname(file)
     os.makedirs(file_path, exist_ok=True)
 
@@ -57,19 +53,18 @@ def setup_logging(file: str) -> logging:
     logger = logging.getLogger(main_logger)
     logger.setLevel(logging.DEBUG)
 
-    # create file handler which logs warning and above messages
+    # create file handler which logs level_file and above messages
     fh = logging.FileHandler(file)
-    fh.setLevel(logging.WARNING)
+    fh.setLevel(level_file)
 
     # File handler for selective INFO logging
     info_fh = logging.FileHandler(file)
     info_fh.setLevel(logging.INFO)
     info_fh.addFilter(lambda record: getattr(record, 'to_logfile', False))
 
-
     # create console handler which logs even debugging information
     ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
+    ch.setLevel(level_console)
 
     # create formatter and add it to the handlers
     formatter = logging.Formatter('%(asctime)s, %(levelname)s, %(name)s, %(message)s', datefmt="%Y-%m-%dT%H:%M:%S")

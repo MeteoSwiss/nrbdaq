@@ -23,7 +23,9 @@ class FIDAS:
 
         # configure logging
         logfile = Path(config['root']).expanduser() / config['logging']['file']
-        self.logger = setup_logging(file=logfile)
+        self.logger = setup_logging(file=logfile,
+                                    level_console=config["logging"]["level_console"],
+                                    level_file=config["logging"]["level_file"])
 
         # _logger = config['logging']['file'].split('.')[0]
         # self.logger = logging.getLogger(f"{_logger}.{__name__}")
