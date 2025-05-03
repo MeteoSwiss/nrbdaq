@@ -4,8 +4,8 @@ root: ~/Documents/nrbdaq
 logging:
 # NB: specify file relative to root
   file: nrbdaq.log
-  # level_console: INFO
-  level_console: DEBUG
+  level_console: INFO
+  # level_console: DEBUG
   level_file: ERROR
   # level_file: WARNING
 
