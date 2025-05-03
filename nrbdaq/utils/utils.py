@@ -26,7 +26,7 @@ def load_config(config_file: str) -> configparser.ConfigParser:
     :return: ConfigParser object with the loaded configuration.
     """
     extension = os.path.basename(config_file).split(".")[1].lower()
-    if extension == "ini": 
+    if extension == "ini":
         config = configparser.ConfigParser()
         config.read(config_file)
     elif extension == 'yaml' or extension == 'yml':
@@ -35,6 +35,10 @@ def load_config(config_file: str) -> configparser.ConfigParser:
     else:
         print("Extension of config file not recognized!)")
     return config
+
+class WriteToLogfile(logging.Filter):
+    def filter(self, record):
+        return getattr(record, 'force_to_file', False)
 
 
 def setup_logging(file: str) -> logging:
@@ -57,17 +61,25 @@ def setup_logging(file: str) -> logging:
     fh = logging.FileHandler(file)
     fh.setLevel(logging.WARNING)
 
+    # File handler for selective INFO logging
+    info_fh = logging.FileHandler(file)
+    info_fh.setLevel(logging.INFO)
+    info_fh.addFilter(lambda record: getattr(record, 'to_logfile', False))
+
+
     # create console handler which logs even debugging information
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
-    
+
     # create formatter and add it to the handlers
     formatter = logging.Formatter('%(asctime)s, %(levelname)s, %(name)s, %(message)s', datefmt="%Y-%m-%dT%H:%M:%S")
     fh.setFormatter(formatter)
+    info_fh.setFormatter(formatter)
     ch.setFormatter(formatter)
-    
+
     # add the handlers to the logger
     logger.addHandler(fh)
+    logger.addHandler(info_fh)
     logger.addHandler(ch)
 
     # mqtt_handler = MQTTHandler()
@@ -79,11 +91,11 @@ def setup_logging(file: str) -> logging:
 def seconds_to_next_n_minutes(n: int):
     # Get the current time in seconds since the epoch
     now = time.time()
-    
+
     # Calculate minutes and seconds of the current time
     minutes = int(now // 60) % 60
     seconds = int(now % 60)
-    
+
     # Calculate remaining time to the next n-minute mark
     minutes_to_next_n_minutes = n - (minutes % n)
     remaining_seconds = (minutes_to_next_n_minutes * 60) - seconds
