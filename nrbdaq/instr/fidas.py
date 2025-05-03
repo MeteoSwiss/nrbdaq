@@ -111,9 +111,8 @@ class FIDAS:
             return {}
 
     def collect_raw_record(self):
-        self.logger.info("[.collect_raw_record] entering ...")
+        self.logger.debug("[.collect_raw_record] entering ...")
         record = self.receive_udp_record()
-        print(record)
         self.logger.debug(f"[.collect_raw_record] {record[:100]}")
         if record:
             parsed = self.parse_record(record)
