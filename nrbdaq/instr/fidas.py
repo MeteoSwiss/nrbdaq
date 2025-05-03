@@ -45,10 +45,8 @@ class FIDAS:
 
     def __enter__(self):
         try:
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.sock.bind((self.local_ip, self.local_port))
-            # self.setup_schedules()
-            self.logger.info(f"[FIDAS.__enter__] Listening on {self.local_ip}:{self.local_port}")
+            self.connect_udp()
+            self.setup_schedules()
             return self
         except Exception as err:
             self.logger.error(f"[FIDAS.__enter__] {err} {self.local_ip}:{self.local_port}")
@@ -60,6 +58,14 @@ class FIDAS:
                 self.save_hourly()
         self.logger.info("[FIDAS.__exit__] Goodbye!", extra={'to_logfile': True})
 
+    def connect_udp(self):
+        try:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.sock.bind((self.local_ip, self.local_port))
+            self.logger.info(f"[FIDAS.__enter__] Listening on {self.local_ip}:{self.local_port}")
+            return
+        except Exception as err:
+            self.logger.error(f"[.connect_udp] {err}")
 
     def receive_udp_record(self) -> str:
         if self.sock is None:

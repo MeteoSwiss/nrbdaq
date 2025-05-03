@@ -25,6 +25,7 @@ def main():
 
     # setup FIDAS
     fidas = FIDAS(config=config)
+    fidas.connect_udp()
     fidas.setup_schedules()
 
     # setup AE31 data acquisition and data transfer
