@@ -7,3 +7,4 @@ requests
 schedule
 sockslib
 paho-mqtt
+numpy
