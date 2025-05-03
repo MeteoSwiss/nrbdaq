@@ -98,7 +98,7 @@ class FIDAS:
                 if '=' in pair:
                     k, v = pair.split('=', 1)
                     # key = f"val_{int(k.strip())}"
-                    key = int(k.strip())
+                    key = k.strip()
                     try:
                         val = float(v.strip())
                     except ValueError:
@@ -126,6 +126,11 @@ class FIDAS:
         self.logger.debug("[.compute_minute_median] entering ...")
         if not self.raw_records:
             self.logger.debug("[.compute_minute_median] self.raw_records is empty.")
+            return
+
+        # Defensive check
+        if not all(isinstance(row, dict) for row in self.raw_records):
+            self.logger.error(f"[.compute_minute_median] Invalid format in raw_records: {self.raw_records}")
             return
 
         df = pl.DataFrame(self.raw_records)
