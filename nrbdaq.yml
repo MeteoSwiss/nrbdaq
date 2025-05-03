@@ -4,9 +4,10 @@ root: ~/Documents/nrbdaq
 logging:
 # NB: specify file relative to root
   file: nrbdaq.log
-  level_console: INFO
-  # level_file: ERROR
+  # level_console: INFO
+  level_console: DEBUG
   level_file: ERROR
+  # level_file: WARNING
 
 # data path
 data: data
@@ -113,6 +114,19 @@ AVO:
   staging_path: 49i
   remote_path: 49i
   # archive: archive/49i
+
+fidas:
+  fetch_interval_seconds: 5
+  data_path: fidas
+  socket:
+    host: 192.168.2.114
+    port: 56790
+    buffer_size: 8192
+    timeout: 5
+    sleep: 0.1
+  staging_path: fidas
+  remote_path: fidas
+
 
 # future
 # [dxs]
