@@ -25,7 +25,7 @@ def main():
 
     # setup FIDAS
     fidas = FIDAS(config=config)
-    fidas.setup_schedules()
+    # fidas.setup_schedules()
 
     # setup AE31 data acquisition and data transfer
     ae31 = AE31(config=config)
@@ -86,7 +86,7 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         print("Stopping data acquisition ...")
-        fidas.save_hourly()  # Save any remaining data on exit
+        # fidas.save_hourly()  # Save any remaining data on exit
 
 
 if __name__ == "__main__":
