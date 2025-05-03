@@ -45,7 +45,7 @@ class FIDAS:
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.sock.bind((self.local_ip, self.local_port))
-            self.logger.info(f"Listening on {self.local_ip}:{self.local_port}")
+            self.logger.info(f"[FIDAS.__enter__] Listening on {self.local_ip}:{self.local_port}")
             return self
         except Exception as err:
             self.logger.error(f"[FIDAS.__enter__] {err} {self.local_ip}:{self.local_port}")
@@ -55,7 +55,7 @@ class FIDAS:
             self.sock.close()
             if not self.df_minute.is_empty():
                 self.save_hourly()
-        self.logger.info(f"[FIDAS.__exit__] Goodbye!", extra={'to_logfile': True})
+        self.logger.info("[FIDAS.__exit__] Goodbye!", extra={'to_logfile': True})
 
 
     def receive_udp_record(self) -> str:
@@ -81,7 +81,7 @@ class FIDAS:
         return str()
 
     def parse_record(self, record: str) -> "dict[str, Any]":
-        self.logger.debug(f"[.parse_record] entering function")
+        self.logger.debug("[.parse_record] entering function")
 
         try:
             id_part, rest = record.split('<', 1)
@@ -94,7 +94,8 @@ class FIDAS:
             for pair in data_part.split(';'):
                 if '=' in pair:
                     k, v = pair.split('=', 1)
-                    key = f"val_{int(k.strip())}"
+                    # key = f"val_{int(k.strip())}"
+                    key = int(k.strip())
                     try:
                         val = float(v.strip())
                     except ValueError:
@@ -107,9 +108,9 @@ class FIDAS:
             return {}
 
     def collect_raw_record(self):
-        self.logger.debug(f"[{time.time()}] collect_raw_record")
+        self.logger.debug("[.collect_raw_record] entering ...")
         record = self.receive_udp_record()
-        self.logger.debug(f"[{time.time()}] {record[:100]}")
+        self.logger.debug(f"[.collect_raw_record] {record[:100]}")
         if record:
             parsed = self.parse_record(record)
             if parsed:
@@ -119,9 +120,9 @@ class FIDAS:
             self.logger.warning(f"[.collect_raw_record] raw_record is empty")
 
     def compute_minute_median(self):
-        self.logger.debug(f"[.compute_minute_median] entering ...")
+        self.logger.debug("[.compute_minute_median] entering ...")
         if not self.raw_records:
-            self.logger.debug(f"[.compute_minute_median] self.raw_records is empty.")
+            self.logger.debug("[.compute_minute_median] self.raw_records is empty.")
             return
 
         df = pl.DataFrame(self.raw_records)
@@ -148,7 +149,7 @@ class FIDAS:
         self.logger.debug(f"[.compute_minute_median] {median_row}")
 
     def save_hourly(self):
-        self.logger.debug(f"[.save_hourly] entering ...")
+        self.logger.debug("[.save_hourly] entering ...")
         now = datetime.datetime.now(datetime.timezone.utc)
         if now.hour != self.current_hour.hour:
             if not self.df_minute.is_empty():
