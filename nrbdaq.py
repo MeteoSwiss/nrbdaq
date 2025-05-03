@@ -25,7 +25,7 @@ def main():
 
     # setup FIDAS
     fidas = FIDAS(config=config)
-    # fidas.setup_schedules()
+    fidas.setup_schedules()
 
     # setup AE31 data acquisition and data transfer
     ae31 = AE31(config=config)

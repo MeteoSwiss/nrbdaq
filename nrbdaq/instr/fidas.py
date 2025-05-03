@@ -47,7 +47,7 @@ class FIDAS:
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.sock.bind((self.local_ip, self.local_port))
-            self.setup_schedules()
+            # self.setup_schedules()
             self.logger.info(f"[FIDAS.__enter__] Listening on {self.local_ip}:{self.local_port}")
             return self
         except Exception as err:
