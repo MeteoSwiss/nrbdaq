@@ -167,9 +167,9 @@ class FIDAS:
                '64': "PM10 [mg/m³]",
                '65': "PMtotal [mg/m³]",
         }
-        values = {v: median_row[0, k] for k,v in map}
-        self.logger.info(f"[.compute_minute_median] row added: {str(median_row.to_dicts()[0])[:80]}[...]")
+        values = {lbl: median_row[0, col] for col, lbl in map.items()}
         self.logger.info(f"[.compute_minute_median] row added: {values}")
+        # self.logger.info(f"[.compute_minute_median] row added: {str(median_row.to_dicts()[0])[:80]}[...]")
         self.logger.debug(f"[.compute_minute_median] {median_row}")
 
     def save_hourly(self):
