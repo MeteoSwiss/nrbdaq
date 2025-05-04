@@ -21,10 +21,10 @@ else
     echo "$(date +\%FT\%T), INFO, bucdaq.sh, .venv activated"
 
     # change cwd
-    cd /home/admin/git/bucdaq/
+    cd /home/admin/git/nrbdaq/
 
     # Start the script
-    /home/admin/git/nrbdaq/.venv/bin/python3 -u /home/admin/git/bucdaq/bucdaq.py
+    /home/admin/git/nrbdaq/.venv/bin/python3 -u /home/admin/git/nrbdaq/bucdaq.py
     echo "$(date +\%FT\%T), INFO, bucdaq.sh, == BUCDAQ (re)started ====" >> /home/admin/Documents/bucdaq/bucdaq.log 2>&1
 fi
 

@@ -5,7 +5,6 @@ from nrbdaq.instr.thermo import Thermo49i
 from nrbdaq.utils.sftp import SFTPClient
 from nrbdaq.utils.utils import load_config, setup_logging, seconds_to_next_n_minutes
 
-
 def main():
     # load configuation
     config = load_config(config_file='bucdaq.yml')
