@@ -159,7 +159,17 @@ class FIDAS:
         self.df_minute = pl.concat([self.df_minute, median_row], how="diagonal")
         self.raw_records.clear()
 
+        # Fidas parameter map
+        map = {'60': "Cn [P/cm³]",
+               '61': "PM1 [mg/m³]",
+               '62': "PM2.5 [mg/m³]",
+               '63': "PM4 [mg/m³]",
+               '64': "PM10 [mg/m³]",
+               '65': "PMtotal [mg/m³]",
+        }
+        values = {v: median_row[0, k] for k,v in map}
         self.logger.info(f"[.compute_minute_median] row added: {str(median_row.to_dicts()[0])[:80]}[...]")
+        self.logger.info(f"[.compute_minute_median] row added: {values}")
         self.logger.debug(f"[.compute_minute_median] {median_row}")
 
     def save_hourly(self):
