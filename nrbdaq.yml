@@ -116,14 +116,15 @@ AVO:
   # archive: archive/49i
 
 fidas:
-  fetch_interval_seconds: 5
-  data_path: fidas
   socket:
     host: 192.168.2.114
     port: 56790
     buffer_size: 8192
     timeout: 5
     sleep: 0.1
+  fetch_interval_seconds: 5
+  reporting_interval: 60
+  data_path: fidas
   staging_path: fidas
   remote_path: fidas
 
