@@ -26,7 +26,7 @@ def load_config(config_file: str) -> configparser.ConfigParser:
     :return: ConfigParser object with the loaded configuration.
     """
     extension = os.path.basename(config_file).split(".")[1].lower()
-    if extension == "ini": 
+    if extension == "ini":
         config = configparser.ConfigParser()
         config.read(config_file)
     elif extension == 'yaml' or extension == 'yml':
@@ -36,16 +36,16 @@ def load_config(config_file: str) -> configparser.ConfigParser:
         print("Extension of config file not recognized!)")
     return config
 
-
-def setup_logging(file: str) -> logging:
+def setup_logging(file: str, level_console:int=20, level_file:int=40) -> logging.Logger:
     """Setup the main logging device
 
     Args:
         file (str): full path to log file
 
     Returns:
-        logging: a logger object
+        logging.Logger: a logger object
     """
+
     file_path = os.path.dirname(file)
     os.makedirs(file_path, exist_ok=True)
 
@@ -53,21 +53,28 @@ def setup_logging(file: str) -> logging:
     logger = logging.getLogger(main_logger)
     logger.setLevel(logging.DEBUG)
 
-    # create file handler which logs warning and above messages
+    # create file handler which logs level_file and above messages
     fh = logging.FileHandler(file)
-    fh.setLevel(logging.WARNING)
+    fh.setLevel(level_file)
+
+    # File handler for selective INFO logging
+    info_fh = logging.FileHandler(file)
+    info_fh.setLevel(logging.INFO)
+    info_fh.addFilter(lambda record: getattr(record, 'to_logfile', False))
 
     # create console handler which logs even debugging information
     ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-    
+    ch.setLevel(level_console)
+
     # create formatter and add it to the handlers
     formatter = logging.Formatter('%(asctime)s, %(levelname)s, %(name)s, %(message)s', datefmt="%Y-%m-%dT%H:%M:%S")
     fh.setFormatter(formatter)
+    info_fh.setFormatter(formatter)
     ch.setFormatter(formatter)
-    
+
     # add the handlers to the logger
     logger.addHandler(fh)
+    logger.addHandler(info_fh)
     logger.addHandler(ch)
 
     # mqtt_handler = MQTTHandler()
@@ -79,11 +86,11 @@ def setup_logging(file: str) -> logging:
 def seconds_to_next_n_minutes(n: int):
     # Get the current time in seconds since the epoch
     now = time.time()
-    
+
     # Calculate minutes and seconds of the current time
     minutes = int(now // 60) % 60
     seconds = int(now % 60)
-    
+
     # Calculate remaining time to the next n-minute mark
     minutes_to_next_n_minutes = n - (minutes % n)
     remaining_seconds = (minutes_to_next_n_minutes * 60) - seconds

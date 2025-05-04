@@ -1,8 +1,0 @@
-[Unit]
-After=network.target
-
-[Service]
-ExecStart=/home/gaw/git/nrbdaq/nrbdaq.sh
-
-[Install]
-WantedBy=default.target
