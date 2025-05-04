@@ -22,12 +22,12 @@
 #
 # m h  dom mon dow   command
 
-# Setup for NRB
+# Setup for rpi-nrb
 @reboot /bin/bash /home/gaw/git/nrbdaq/nrbdaq.sh > /dev/null
 @reboot echo "$(date +\%FT\%T), INFO, cron@reboot, == NRBDAQ started ===" >> /home/gaw/Documents/nrbdaq/nrbdaq.log 2>&1
 0,5,10,15,20,25,30,35,40,45,50,55 * * * * /bin/bash /home/gaw/git/nrbdaq/nrbdaq.sh >> /home/gaw/Documents/nrbdaq/nrbdaq.log
 
-# Setup for Bomet
+# Setup for rpi-bomet
 @reboot /bin/bash /home/admin/git/nrbdaq/bucdaq.sh > /dev/null
 @reboot echo "$(date +\%FT\%T), INFO, cron@reboot, == BUCDAQ started ===" >> /home/admin/Documents/bucdaq/bucdaq.log 2>&1
 0,5,10,15,20,25,30,35,40,45,50,55 * * * * /bin/bash /home/admin/git/nrbdaq/bucdaq.sh >> /home/admin/Documents/nrbdaq/bucdaq.log
