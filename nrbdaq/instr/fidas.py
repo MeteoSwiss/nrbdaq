@@ -19,7 +19,7 @@ class FIDAS:
         # local_port: int = 56790,
         # buffer_size: int = 8192
     ):
-        self.name = config[name]
+        self.name = name
 
         # configure logging
         logfile = Path(config['root']).expanduser() / config['logging']['file']
