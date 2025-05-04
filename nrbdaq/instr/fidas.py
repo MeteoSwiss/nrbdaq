@@ -25,7 +25,7 @@ class FIDAS:
         self.logger.info("Initialize FIDAS", extra={'to_logfile': True})
 
         self.data_dir = Path(config['root']).expanduser() / config['data'] / config[name]['data_path']
-        self.staging_dir = Path(config['root']).expanduser() / config['staging'] / config[name]['staging_path']
+        self.staging_path = Path(config['root']).expanduser() / config['staging'] / config[name]['staging_path']
         self.remote_path = config[name]['remote_path']
         self.fetch_interval_seconds = int(config[name]['fetch_interval_seconds'])
         self.local_ip = config[name]['socket']['host']
@@ -178,8 +178,8 @@ class FIDAS:
                     self.df_minute = pl.concat([existing, self.df_minute], how="diagonal").unique()
                 self.df_minute.write_parquet(out_path)
                 if stage:
-                    self.staging_dir.mkdir(parents=True, exist_ok=True)
-                    staging_path = self.staging_dir / out_path.name
+                    self.staging_path.mkdir(parents=True, exist_ok=True)
+                    staging_path = self.staging_path / out_path.name
                     self.df_minute.write_parquet(staging_path)
                 self.logger.debug(f"[.save_hourly] hourly file saved to {out_path} and staged to {staging_path}")
             self.df_minute = pl.DataFrame()
