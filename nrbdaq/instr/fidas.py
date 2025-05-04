@@ -28,6 +28,7 @@ class FIDAS:
         self.staging_path = Path(config['root']).expanduser() / config['staging'] / config[name]['staging_path']
         self.remote_path = config[name]['remote_path']
         self.fetch_interval_seconds = int(config[name]['fetch_interval_seconds'])
+        self.reporting_interval = config[name]['reporting_interval']
         self.local_ip = config[name]['socket']['host']
         self.local_port = config[name]['socket']['port']
         self.buffer_size = config[name]['socket']['buffer_size']
