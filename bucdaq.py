@@ -32,7 +32,7 @@ def main():
     # align start with a multiple-of-minute timestamp
     seconds_left = seconds_to_next_n_minutes(1)
     while seconds_left > 0:
-        print(f"Time remaining: {seconds_left:0.1f} s", end="\r")
+        logger.info(f"Time remaining: {seconds_left:>0.1f} s", end="\r")
         dt = 1 #0.2
         time.sleep(dt)
         seconds_left -= dt
