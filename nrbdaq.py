@@ -27,6 +27,10 @@ def main():
     fidas = FIDAS(config=config)
     fidas.connect_udp()
     fidas.setup_schedules()
+    remote_path = os.path.join(sftp.remote_path, fidas.remote_path)
+    sftp.setup_transfer_schedules(local_path=fidas.staging_path,
+                                  remote_path=remote_path,
+                                  interval=fidas.reporting_interval)
 
     # setup AE31 data acquisition and data transfer
     ae31 = AE31(config=config)

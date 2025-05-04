@@ -13,11 +13,6 @@ class FIDAS:
         self,
         config: dict,
         name: str='fidas',
-        # base_dir: str,
-        # fetch_interval_seconds: int = 5,
-        # local_ip: str = "0.0.0.0",
-        # local_port: int = 56790,
-        # buffer_size: int = 8192
     ):
         self.name = name
 
@@ -27,11 +22,10 @@ class FIDAS:
                                     level_console=config["logging"]["level_console"],
                                     level_file=config["logging"]["level_file"])
 
-        # _logger = config['logging']['file'].split('.')[0]
-        # self.logger = logging.getLogger(f"{_logger}.{__name__}")
         self.logger.info("Initialize FIDAS", extra={'to_logfile': True})
 
-        self.base_dir = Path(config['root']).expanduser() / config['data'] / config[name]['data_path']
+        self.data_dir = Path(config['root']).expanduser() / config['data'] / config[name]['data_path']
+        self.staging_dir = Path(config['root']).expanduser() / config['staging'] / config[name]['staging_path']
         self.fetch_interval_seconds = int(config[name]['fetch_interval_seconds'])
         self.local_ip = config[name]['socket']['host']
         self.local_port = config[name]['socket']['port']
@@ -172,7 +166,7 @@ class FIDAS:
         # self.logger.info(f"[.compute_minute_median] row added: {str(median_row.to_dicts()[0])[:80]}[...]")
         self.logger.debug(f"[.compute_minute_median] {median_row}")
 
-    def save_hourly(self):
+    def save_hourly(self, stage:bool=True):
         self.logger.debug("[.save_hourly] entering ...")
         now = datetime.datetime.now(datetime.timezone.utc)
         if now.hour != self.current_hour.hour:
@@ -182,12 +176,16 @@ class FIDAS:
                     existing = pl.read_parquet(out_path)
                     self.df_minute = pl.concat([existing, self.df_minute], how="diagonal").unique()
                 self.df_minute.write_parquet(out_path)
-                self.logger.debug(f"[.save_hourly] hourly file saved to {out_path}")
+                if stage:
+                    self.staging_dir.mkdir(parents=True, exist_ok=True)
+                    staging_path = self.staging_dir / out_path.name
+                    self.df_minute.write_parquet(staging_path)
+                self.logger.debug(f"[.save_hourly] hourly file saved to {out_path} and staged to {staging_path}")
             self.df_minute = pl.DataFrame()
             self.current_hour = now.replace(minute=0, second=0, microsecond=0)
 
     def ensure_output_path(self, dt: datetime.datetime) -> Path:
-        folder = self.base_dir / f"{dt.year:04d}" / f"{dt.month:02d}" / f"{dt.day:02d}"
+        folder = self.data_dir / f"{dt.year:04d}" / f"{dt.month:02d}" / f"{dt.day:02d}"
         folder.mkdir(parents=True, exist_ok=True)
         filename = f"{self.name}-{dt.year:04d}{dt.month:02d}{dt.day:02d}{dt.hour:02d}.parquet"
         return folder / filename
