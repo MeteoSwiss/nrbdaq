@@ -52,7 +52,7 @@ class SFTPClient:
             self.usr = config['sftp']['usr']
             self.key = paramiko.RSAKey.from_private_key_file(\
                 os.path.expanduser(config['sftp']['key']))
-            
+
             # configure client proxy if needed
             # if config['sftp']['proxy']['socks5']:
             #     import sockslib
@@ -140,7 +140,7 @@ class SFTPClient:
         except Exception as err:
             self.logger.error(err)
             return False
-        
+
 
     def list_remote_items(self, remote_path: str='.') -> list:
         try:
@@ -240,7 +240,7 @@ class SFTPClient:
                     ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
                     with ssh.open_sftp() as sftp:
                         try:
-                            if sftp.listdir(remote_path):                        
+                            if sftp.listdir(remote_path):
                                 # neither an empty directory, nor a file: do nothing
                                 self.logger.warning('Cannot remove non-empty directory. Provide full path to file to remove it, or empty the directory first.')
                                 return
@@ -277,7 +277,7 @@ class SFTPClient:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
                 with ssh.open_sftp() as sftp:
-                    # create remote path if it doesn't exist and enter it        
+                    # create remote path if it doesn't exist and enter it
                     try:
                         sftp.chdir(remote_path)
                     except IOError:
@@ -307,7 +307,7 @@ class SFTPClient:
 
         Args:
             local_path (str, optional): full path to local directory location. Defaults to empty string.
-            remote_path (str, optional): relative path to remote directory location. Defaults to empty string. 
+            remote_path (str, optional): relative path to remote directory location. Defaults to empty string.
                                          NB: last element in remote_path must be a directory, not a file!
             remove_on_success (bool, optional): Remove successfully transfered files from local_path?. Defaults to True.
         """
@@ -322,28 +322,32 @@ class SFTPClient:
             # sanitize paths
             local_path = local_path.replace('\\', '/')
             remote_path = remote_path.replace('\\', '/')
+            self.logger.info(f"{local_path} > {remote_path}", to_logfile=True)
 
             with paramiko.SSHClient() as ssh:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
                 with ssh.open_sftp() as sftp:
                     # walk local directory structure, put file to remote location
-																
+
                     top = local_path
                     for root, dirs, files in os.walk(top=top):
                         for file in files:
                             local_file = os.path.join(root, file).replace('\\', '/').rstrip('/')
+                            self.logger.info(f"{local_file}", to_logfile=True)
+
                             parts = root.replace('\\', '/').replace(local_path, '').strip('/')
                             remote_file = f"{remote_path}/{parts}/{file}"
-                            
+                            self.logger.info(f"{remote_file}", to_logfile=True)
+
                             cwd = self.setup_remote_path(f"{remote_path}/{parts}")
-												 
+
                             attr = sftp.put(localpath=local_file, remotepath=remote_file, confirm=True)
                             self.logger.debug(f"put {local_file} > {remote_file}")
                             self.transfered.append(file)
 
                             if remove_on_success:
-																								  
+
                                 local_size = os.stat(local_file).st_size
                                 remote_size = attr.st_size
                                 if remote_size == local_size:
@@ -351,7 +355,7 @@ class SFTPClient:
                                 else:
                                     self.logger.warning(f"local file size: {local_size}, remote file: {remote_size} differ. Did not remove {local_file}.")
                 return
-                            
+
         except Exception as err:
             self.logger.error(f"transfer_files: {local_path} > {remote_path}: {err}")
 
@@ -370,7 +374,7 @@ class SFTPClient:
                 schedule.every(1).day.at('00:00:10').do(self.transfer_files, local_path, remote_path, remove_on_success)
             else:
                 raise ValueError("'interval' must be 10 minutes or a multiple of 60 minutes and a maximum of 1440 minutes.")
-            
+
         except Exception as err:
             self.schedule_logger.error(err)
 
