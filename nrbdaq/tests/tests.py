@@ -1,5 +1,6 @@
 import os
 import unittest
+from pathlib import Path
 
 import polars as pl
 
@@ -75,16 +76,16 @@ class TestThermo49i(unittest.TestCase):
 
         self.assertEqual(thermo49i._data, str())
 
-class testFidas(unittest.TestCase):
-    def test_transfer_file(self):
+class TestFidas(unittest.TestCase):
+    def test_transfer_file(self, name="fidas"):
         sftp = SFTPClient(config=config)
 
-        with FIDAS(config=config) as fidas:
-            if fidas:
-                # fidas.run()
-                remote_path = os.path.join(sftp.remote_path, fidas.remote_path)
-                sftp.transfer_files(local_path=fidas.staging_path,
-                                    remote_path=remote_path)
+        fidas_staging_path = Path(config['root']).expanduser() / config['staging'] / config[name]['staging_path']
+        fidas_remote_path = config[name]['remote_path']
+
+        remote_path = os.path.join(sftp.remote_path, fidas_remote_path)
+        sftp.transfer_files(local_path=fidas_staging_path,
+                            remote_path=remote_path)
 
 
 if __name__ == "__main__":
