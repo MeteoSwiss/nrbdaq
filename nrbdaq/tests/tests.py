@@ -1,13 +1,16 @@
 import os
-import polars as pl
 import unittest
-from nrbdaq.utils.utils import load_config
-from nrbdaq.utils.sftp import SFTPClient
+
+import polars as pl
+
 import nrbdaq.instr.avo as avo
 from nrbdaq.instr.ae31 import AE31
+from nrbdaq.instr.fidas import FIDAS
 from nrbdaq.instr.thermo import Thermo49i
+from nrbdaq.utils.sftp import SFTPClient
+from nrbdaq.utils.utils import load_config
 
-config = load_config('nrbdaq.yml')
+config = load_config(config_file="nrbdaq.yml")
 
 class TestSFTP(unittest.TestCase):
     def test_config_host(self):
@@ -32,7 +35,7 @@ class TestSFTP(unittest.TestCase):
         remotepath = sftp.remote_path
         remote_path = os.path.join(remotepath, os.path.basename(file_path))
         if sftp.remote_item_exists(remote_path=remote_path):
-            sftp.remove_remote_item(remote_path=remote_path)            
+            sftp.remove_remote_item(remote_path=remote_path)
 
         attr = sftp.put_file(local_path=file_path, remote_path=remotepath)
 
@@ -50,7 +53,7 @@ class TestAVO(unittest.TestCase):
 
     def test_data_to_dfs(self):
         data = avo.download_data(url=config['AVO']['urls']['url_nairobi'])
-        station, dfs = avo.data_to_dfs(data=data, 
+        station, dfs = avo.data_to_dfs(data=data,
                               file_path=os.path.join(os.path.expanduser(config['root']), config['AVO']['data']),
                               staging=os.path.join(os.path.expanduser(config['root']), config['AVO']['staging']))
         self.assertEqual(station, 'kmd_hq_nairobi')
@@ -72,6 +75,17 @@ class TestThermo49i(unittest.TestCase):
 
         self.assertEqual(thermo49i._data, str())
 
+class testFidas(unittest.TestCase):
+    def test_transfer_file(self):
+        sftp = SFTPClient(config=config)
+
+        with FIDAS(config=config) as fidas:
+            if fidas:
+                # fidas.run()
+                remote_path = os.path.join(sftp.remote_path, fidas.remote_path)
+                sftp.transfer_files(local_path=fidas.staging_path,
+                                    remote_path=remote_path)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
-    
