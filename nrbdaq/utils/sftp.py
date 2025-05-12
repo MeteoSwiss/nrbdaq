@@ -384,6 +384,9 @@ class SFTPClient:
 
     def setup_transfer_schedules(self, local_path: str, remote_path: str, remove_on_success: bool=True, interval: int=60):
         try:
+            local_path = self.normalize_path(local_path)
+            remote_path = self.normalize_path(remote_path)
+
             if interval==10:
                 minutes = [f"{interval*n:02}" for n in range(6) if interval*n < 6]
                 for minute in minutes:

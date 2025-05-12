@@ -77,7 +77,7 @@ class TestThermo49i(unittest.TestCase):
         self.assertEqual(thermo49i._data, str())
 
 class TestFidas(unittest.TestCase):
-    def test_transfer_file(self, name="fidas"):
+    def test_transfer_staged_files(self, name="fidas"):
         sftp = SFTPClient(config=config)
 
         fidas_staging_path = Path(config['root']).expanduser() / config['staging'] / config[name]['staging_path']
