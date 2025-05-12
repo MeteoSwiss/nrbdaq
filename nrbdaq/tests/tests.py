@@ -84,8 +84,12 @@ class TestFidas(unittest.TestCase):
         fidas_remote_path = config[name]['remote_path']
 
         remote_path = os.path.join(sftp.remote_path, fidas_remote_path)
+        local_file_paths = sftp.list_local_files(fidas_staging_path)
         sftp.transfer_files(local_path=fidas_staging_path,
-                            remote_path=remote_path)
+                            remote_path=remote_path,
+                            remove_on_success=False)
+        self.assertEqual(sftp.remote_item_exists(local_file_paths[0]), True)
+        self.assertEqual(sftp.remote_item_exists(local_file_paths[-1]), True)
 
 
 if __name__ == "__main__":

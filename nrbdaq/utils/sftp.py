@@ -11,6 +11,7 @@ import re
 
 import paramiko
 import schedule
+from pathlib import Path, PosixPath, WindowsPath
 
 
 class SFTPClient:
@@ -302,6 +303,27 @@ class SFTPClient:
             return str()
 
 
+    def normalize_path(self, path) -> str:
+        """
+        Normalize a path to a string with forward slashes, regardless of input type.
+
+        Args:
+            path (str or Path): The input path (string, PosixPath, or WindowsPath).
+
+        Returns:
+            str: Normalized path string using forward slashes.
+        """
+        try:
+            if isinstance(path, (PosixPath, WindowsPath)):
+                path = str(path)
+            elif not isinstance(path, str):
+                raise TypeError(f"Unsupported path type: {type(path)}")
+
+            return path.replace('\\', '/')
+        except Exception as err:
+            self.logger.error(f"[normalize_path] {err}")
+
+
     def transfer_files(self, local_path: str=str(), remote_path: str=str(), remove_on_success: bool=True) -> None:
         """Transfer (move) all files from local_path and sub-folders to remote_path.
 
@@ -320,8 +342,8 @@ class SFTPClient:
                 remote_path = self.remote_path
 
             # sanitize paths
-            local_path = local_path.replace('\\', '/')
-            remote_path = remote_path.replace('\\', '/')
+            local_path = self.normalize_path(local_path)
+            remote_path = self.normalize_path(remote_path)
             self.logger.info(f"{local_path} > {remote_path}", to_logfile=True)
 
             with paramiko.SSHClient() as ssh:

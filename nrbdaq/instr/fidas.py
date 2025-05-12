@@ -25,8 +25,12 @@ class FIDAS:
         self.logger.info("Initialize FIDAS", extra={'to_logfile': True})
 
         self.data_dir = Path(config['root']).expanduser() / config['data'] / config[name]['data_path']
+        Path(self.data_dir).mkdir(parents=True, exist_ok=True)
         self.staging_path = Path(config['root']).expanduser() / config['staging'] / config[name]['staging_path']
+        Path(self.staging_path).mkdir(parents=True, exist_ok=True)
         self.remote_path = config[name]['remote_path']
+        Path(self.remote_path).mkdir(parents=True, exist_ok=True)
+
         self.fetch_interval_seconds = int(config[name]['fetch_interval_seconds'])
         self.reporting_interval = config[name]['reporting_interval']
         self.local_ip = config[name]['socket']['host']
