@@ -322,6 +322,7 @@ class SFTPClient:
             return path.replace('\\', '/')
         except Exception as err:
             self.logger.error(f"[normalize_path] {err}")
+            return str()
 
 
     def transfer_files(self, local_path: str=str(), remote_path: str=str(), remove_on_success: bool=True) -> None:
@@ -344,7 +345,7 @@ class SFTPClient:
             # sanitize paths
             local_path = self.normalize_path(local_path)
             remote_path = self.normalize_path(remote_path)
-            self.logger.info(f"{local_path} > {remote_path}", to_logfile=True)
+            self.logger.info(f"{local_path} > {remote_path}", extra={"to_logfile": True})
 
             with paramiko.SSHClient() as ssh:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -356,11 +357,11 @@ class SFTPClient:
                     for root, dirs, files in os.walk(top=top):
                         for file in files:
                             local_file = os.path.join(root, file).replace('\\', '/').rstrip('/')
-                            self.logger.info(f"{local_file}", to_logfile=True)
+                            self.logger.info(f"{local_file}", extra={"to_logfile": True})
 
                             parts = root.replace('\\', '/').replace(local_path, '').strip('/')
                             remote_file = f"{remote_path}/{parts}/{file}"
-                            self.logger.info(f"{remote_file}", to_logfile=True)
+                            self.logger.info(f"{remote_file}", extra={"to_logfile": True})
 
                             cwd = self.setup_remote_path(f"{remote_path}/{parts}")
 

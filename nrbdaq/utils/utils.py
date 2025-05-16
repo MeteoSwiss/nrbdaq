@@ -29,12 +29,15 @@ def load_config(config_file: str) -> configparser.ConfigParser:
     if extension == "ini":
         config = configparser.ConfigParser()
         config.read(config_file)
+        return config
     elif extension == 'yaml' or extension == 'yml':
         with open(config_file, 'r') as fh:
             config = yaml.safe_load(fh)
+        return config
     else:
         print("Extension of config file not recognized!)")
-    return config
+        return configparser.ConfigParser()
+
 
 def setup_logging(file: str, level_console:int=20, level_file:int=40) -> logging.Logger:
     """Setup the main logging device
