@@ -51,7 +51,7 @@ class AE31:
             header = f"{header},_590,sens_zero_590,sens_beam_590,ref_zero_590,ref_beam_590,att_590"
             header = f"{header},_660,sens_zero_660,sens_beam_660,ref_zero_660,ref_beam_660,att_660"
             header = f"{header},_880,sens_zero_880,sens_beam_880,ref_zero_880,ref_beam_880,att_880"
-            header = f"{header},_950,sens_zero_950,sens_beam_950,ref_zero_950,ref_beam_950,att_950"
+            header = f"{header},_950,sens_zero_950,sens_beam_950,ref_zero_950,ref_beam_950,att_950\n"
 
             self.header = header
 
