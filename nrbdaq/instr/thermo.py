@@ -82,6 +82,10 @@ class Thermo49i:
             # initialize data_file (path)
             self.data_file = str()
 
+            # get/set instrument configuration
+            self.get_config()
+            self.set_config()
+
         except Exception as err:
             self.logger.error(err)
 
