@@ -1,16 +1,17 @@
 # fidas.py — drop-in replacement
 from __future__ import annotations
 
-import socket
-import polars as pl
 import datetime
-import schedule
-import time
+import logging
+import os
 import re
+import socket
+import time
 from pathlib import Path
 from typing import Any
 
-from nrbdaq.utils.utils import setup_logging
+import polars as pl
+import schedule
 
 
 class FIDAS:
@@ -45,12 +46,9 @@ class FIDAS:
         self.name = name
 
         # configure logging
-        logfile = Path(config["root"]).expanduser() / config["logging"]["file"]
-        self.logger = setup_logging(
-            file=logfile,
-            level_console=config["logging"]["level_console"],
-            level_file=config["logging"]["level_file"],
-        )
+        # use the main app logger (configured in nrbdaq.py) and create a child
+        _logger = os.path.basename(config['logging']['file']).split('.')[0]
+        self.logger = logging.getLogger(f"{_logger}.{__name__}")
         self.logger.info("Initialize FIDAS", extra={"to_logfile": True})
 
         # data paths
