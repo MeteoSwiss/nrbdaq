@@ -197,7 +197,7 @@ class Thermo49i:
 
     def get_config(self) -> list:
         """
-        Read current configuration of instrument and export to log.
+        Read current configuration of instrument and optionally write to log.
 
         :return (err, cfg) configuration or errors, if any.
 

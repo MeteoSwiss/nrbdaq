@@ -1,0 +1,8 @@
+2024-08-13T20:10:21, ERROR, nrbdaq.nrbdaq.utils.sftp, 'staging'
+2024-08-14T15:08:36, ERROR, nrbdaq.nrbdaq.utils.sftp, 'staging'
+2024-08-14T15:18:23, ERROR, nrbdaq.nrbdaq.utils.sftp, 'local_path'
+2024-08-14T15:20:54, ERROR, nrbdaq.nrbdaq.utils.sftp, 'data'
+2024-08-15T00:01:03, ERROR, nrbdaq.nrbdaq.utils.sftp, [Errno 2] No such file
+2024-08-16T00:01:03, ERROR, nrbdaq.nrbdaq.utils.sftp, [Errno 2] No such file
+2024-08-17T00:01:12, ERROR, nrbdaq.nrbdaq.utils.sftp, Failure
+2024-08-17T06:01:06, ERROR, nrbdaq.nrbdaq.utils.sftp, Failure
