@@ -1,53 +1,87 @@
+# fidas.py — drop-in replacement
+from __future__ import annotations
+
 import socket
 import polars as pl
 import datetime
 import schedule
 import time
+import re
 from pathlib import Path
 from typing import Any
-import threading
-from collections import deque
+
 from nrbdaq.utils.utils import setup_logging
 
+
 class FIDAS:
+    """
+    FIDAS UDP data collector with minute aggregation.
+
+    Public API (unchanged):
+      - __init__(config: dict, name: str='fidas')
+      - __enter__ / __exit__
+      - connect_udp()
+      - setup_schedules()
+      - run()
+      - collect_raw_record()
+      - compute_minute_median()
+      - save_hourly(stage: bool = True)
+      - ensure_output_path(dt: datetime)
+
+    The wire payload is a sequence of frames like:
+        6111<sendVal 0=1.0000;1=0.0000;...;74=0.0000>346111<sendVal 110=...>...
+
+    We normalize each frame to: "{id}<sendVal ...>{checksum}" where id/checksum
+    are kept as strings (hex or decimal).
+    """
+
+    # ---- INIT / CONTEXT -----------------------------------------------------
+
     def __init__(
         self,
         config: dict,
-        name: str='fidas',
+        name: str = "fidas",
     ):
         self.name = name
 
         # configure logging
-        logfile = Path(config['root']).expanduser() / config['logging']['file']
-        self.logger = setup_logging(file=logfile,
-                                    level_console=config["logging"]["level_console"],
-                                    level_file=config["logging"]["level_file"])
+        logfile = Path(config["root"]).expanduser() / config["logging"]["file"]
+        self.logger = setup_logging(
+            file=logfile,
+            level_console=config["logging"]["level_console"],
+            level_file=config["logging"]["level_file"],
+        )
+        self.logger.info("Initialize FIDAS", extra={"to_logfile": True})
 
-        self.logger.info("Initialize FIDAS", extra={'to_logfile': True})
+        # data paths
+        self.data_dir = Path(config["root"]).expanduser() / config["data"] / config[name]["data_path"]
+        self.data_dir.mkdir(parents=True, exist_ok=True)
 
-        self.data_dir = Path(config['root']).expanduser() / config['data'] / config[name]['data_path']
-        Path(self.data_dir).mkdir(parents=True, exist_ok=True)
-        self.staging_path = Path(config['root']).expanduser() / config['staging'] / config[name]['staging_path']
-        Path(self.staging_path).mkdir(parents=True, exist_ok=True)
-        self.remote_path = config[name]['remote_path']
+        self.staging_path = Path(config["root"]).expanduser() / config["staging"] / config[name]["staging_path"]
+        self.staging_path.mkdir(parents=True, exist_ok=True)
+
+        self.remote_path = config[name]["remote_path"]
+        # Note: remote_path may be meant for SFTP; we keep prior behavior.
         Path(self.remote_path).mkdir(parents=True, exist_ok=True)
 
-        self.fetch_interval_seconds = int(config[name]['fetch_interval_seconds'])
-        self.reporting_interval = config[name]['reporting_interval']
-        self.local_ip = config[name]['socket']['host']
-        self.local_port = config[name]['socket']['port']
-        self.buffer_size = config[name]['socket']['buffer_size']
+        # scheduling / socket config
+        self.fetch_interval_seconds = int(config[name]["fetch_interval_seconds"])
+        self.reporting_interval = config[name]["reporting_interval"]
+        self.local_ip = config[name]["socket"]["host"]
+        self.local_port = config[name]["socket"]["port"]
+        self.buffer_size = int(config[name]["socket"]["buffer_size"])
 
-        self.sock = None
-        self.buffer = ""
+        # runtime state
+        self.sock: socket.socket | None = None
+        self.buffer: str = ""  # carry-over buffer between UDP recv calls
+        self._warmup_left: int = 2  # skip first couple of fragments after bind
+
+        # accumulation + minute medians
         self.raw_records: list[dict[str, Any]] = []
-        self.df_minute = pl.DataFrame()
-        self.current_hour = datetime.datetime.now(datetime.timezone.utc).replace(minute=0, second=0, microsecond=0)
-
-        self._frames = deque(maxlen=20000)        # raw frames ready for parse
-        self._running = False
-        self._reader_thread: threading.Thread | None = None
-
+        self.df_minute: pl.DataFrame = pl.DataFrame()
+        self.current_hour = (
+            datetime.datetime.now(datetime.timezone.utc).replace(minute=0, second=0, microsecond=0)
+        )
 
     def __enter__(self):
         try:
@@ -58,94 +92,141 @@ class FIDAS:
             self.logger.error(f"[FIDAS.__enter__] {err} {self.local_ip}:{self.local_port}")
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._running = False
         try:
-            if self._reader_thread and self._reader_thread.is_alive():
-                self._reader_thread.join(timeout=0.5)
-        except Exception:
-            pass
-        if self.sock:
-            self.sock.close()
-        if not self.df_minute.is_empty():
-            self.save_hourly()
-        self.logger.info("[FIDAS.__exit__] Goodbye!", extra={'to_logfile': True})
+            if self.sock:
+                try:
+                    self.sock.close()
+                except Exception:
+                    pass
+            if not self.df_minute.is_empty():
+                # ensure we persist what we have
+                self.save_hourly(stage=True)
+        except Exception as err:
+            self.logger.error(f"[FIDAS.__exit__] {err} {self.local_ip}:{self.local_port}")
+        self.logger.info("[FIDAS.__exit__] Goodbye!", extra={"to_logfile": True})
 
+    # ---- SOCKET / IO --------------------------------------------------------
 
     def connect_udp(self):
+        """Open UDP socket and bind; use restart-friendly options."""
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            # important: set options BEFORE bind
+            # restart-friendly & burst-tolerant
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
                 self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
             except OSError:
-                pass  # not available everywhere
-            # give headroom for bursts
+                pass
+            # give headroom for bursts (Linux may double internally)
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 4 * 1024 * 1024)
-
-            # bind (use specific NIC IP if needed)
             self.sock.bind((self.local_ip, self.local_port))
-            self.sock.setblocking(False)
-
-            self._running = True
-            self._reader_thread = threading.Thread(target=self._reader_loop, daemon=True)
-            self._reader_thread.start()
-
-            self.logger.info(f"[connect_udp] Listening on {self.local_ip}:{self.local_port}")
+            # keep original timing model (blocking with timeout)
+            self.sock.settimeout(self.fetch_interval_seconds)
+            self.logger.info(f"[FIDAS.__enter__] Listening on {self.local_ip}:{self.local_port}")
+            return
         except Exception as err:
-            self.logger.error(f"[connect_udp] {err}")
-
-    def _reader_loop(self):
-        buf = ""  # carry-over for partial frames
-        while self._running:
-            try:
-                data, _ = self.sock.recvfrom(self.buffer_size)
-                buf += data.decode("ascii", errors="ignore")
-                # slice complete frames terminated by '>'
-                while True:
-                    end = buf.find('>')
-                    if end == -1:
-                        break
-                    frame = buf[:end+1]       # include '>'
-                    buf = buf[end+1:]         # keep remainder
-                    # push frame for later parsing
-                    self._frames.append(frame)
-            except BlockingIOError:
-                # no data right now; yield briefly
-                time.sleep(0.005)
-            except Exception as e:
-                self.logger.error(f"[reader] {e}")
-                time.sleep(0.1)
-        # store any tail when stopping
-        self.buffer = buf
-
+            self.logger.error(f"[.connect_udp] {err}")
 
     def receive_udp_record(self) -> str:
-        if self._frames:
-            return self._frames.popleft()
-        return ""
+        """
+        Read from UDP until we can return exactly one normalized frame:
+            "{id}<sendVal ...>{checksum}"
+        Keeps remainder in self.buffer for next call.
 
+        Returns empty string on timeout.
+        """
+        if self.sock is None:
+            return str()
+
+        deadline = time.time() + max(0.5, float(self.fetch_interval_seconds))
+        while time.time() < deadline:
+            try:
+                data, _ = self.sock.recvfrom(self.buffer_size)
+                self.buffer += data.decode("ascii", errors="ignore")
+            except socket.timeout:
+                # If we already have a complete frame in buffer, try to parse it now.
+                pass
+
+            # Trim runaway buffer
+            if len(self.buffer) > 262_144:
+                self.buffer = self.buffer[-131_072:]
+
+            # Look for the first '<sendVal '
+            sof = self.buffer.find("<sendVal ")
+            if sof == -1:
+                # no start yet; keep only last few KB
+                if len(self.buffer) > 4096:
+                    self.buffer = self.buffer[-4096:]
+                continue
+
+            # We have a start; ensure we also have the end '>' after that.
+            eof = self.buffer.find(">", sof)
+            if eof == -1:
+                # not a full frame yet
+                continue
+
+            # Extract ID (hex/dec) immediately before the '<sendVal '
+            pre = self.buffer[:sof]
+            m_id = re.search(r"([0-9A-Fa-f]+)\s*$", pre)
+            id_part = m_id.group(1) if m_id else ""
+
+            # The payload (without leading '<' and trailing '>'):
+            payload = self.buffer[sof + 1 : eof]  # "sendVal 0=...;..."
+
+            # Extract checksum characters immediately after '>'
+            m_cs = re.match(r"([0-9A-Fa-f]+)", self.buffer[eof + 1 :])
+            checksum = m_cs.group(1) if m_cs else ""
+
+            # Consume the used portion from the buffer
+            consume_upto = eof + 1 + (len(checksum) if checksum else 0)
+            self.buffer = self.buffer[consume_upto:]
+
+            # Skip first couple frames after bind to avoid mid-stream tails
+            if self._warmup_left > 0:
+                self._warmup_left -= 1
+                continue
+
+            # Return a *single* normalized record
+            return f"{id_part}<{payload}>{checksum}"
+
+        # No complete frame in this call
+        return str()
+
+    # ---- PARSING / AGG ------------------------------------------------------
 
     def parse_record(self, record: str) -> "dict[str, Any]":
+        """
+        Parse a normalized record: "{id}<sendVal k=v;...>{checksum}"
+        - id/checksum kept as strings (could be hex).
+        - values converted to float; 'NaN' -> None.
+        Returns {} on parse error.
+        """
         self.logger.debug("[.parse_record] entering function")
-
         try:
-            id_part, rest = record.split('<', 1)
-            data_part, checksum = rest.split('>', 1)
-            parsed = {"id": int(id_part.strip()), "checksum": checksum.strip()}
+            id_part, rest = record.split("<", 1)
+            data_part, checksum = rest.split(">", 1)
 
+            parsed: dict[str, Any] = {
+                "id": id_part.strip(),         # keep as string (hex allowed)
+                "checksum": checksum.strip(),  # raw
+            }
+
+            # remove 'sendVal' prefix if present
             if data_part.startswith("sendVal"):
-                data_part = data_part[len("sendVal"):].strip()
+                data_part = data_part[len("sendVal") :].strip()
 
-            for pair in data_part.split(';'):
-                if '=' in pair:
-                    k, v = pair.split('=', 1)
-                    # key = f"val_{int(k.strip())}"
-                    key = k.strip()
-                    try:
-                        val = float(v.strip())
-                    except ValueError:
-                        val = float('nan')
+            for pair in data_part.split(";"):
+                if "=" in pair:
+                    k, v = pair.split("=", 1)
+                    key = k.strip()  # keep numeric index as string ("60", "110", ...)
+                    t = v.strip()
+                    if t.lower() == "nan":
+                        val = None
+                    else:
+                        try:
+                            val = float(t)
+                        except ValueError:
+                            val = None
                     parsed[key] = val
 
             return parsed
@@ -154,6 +235,7 @@ class FIDAS:
             return {}
 
     def collect_raw_record(self):
+        """Fetch one frame (if available), parse, and append to raw buffer."""
         self.logger.debug("[.collect_raw_record] entering ...")
         record = self.receive_udp_record()
         self.logger.debug(f"[.collect_raw_record] {record[:100]}")
@@ -161,55 +243,78 @@ class FIDAS:
             parsed = self.parse_record(record)
             if parsed:
                 self.raw_records.append(parsed)
-                self.logger.debug(f"[.collect_raw_record] raw_record appended")
+                self.logger.debug("[.collect_raw_record] raw_record appended")
         else:
-            self.logger.warning(f"[.collect_raw_record] raw_record is empty")
+            self.logger.debug("[.collect_raw_record] no complete frame available this tick")
 
     def compute_minute_median(self):
+        """
+        Aggregate whatever is in raw_records into one minute-median row and
+        append it to df_minute. Clears raw_records afterwards.
+        """
         self.logger.debug("[.compute_minute_median] entering ...")
         if not self.raw_records:
             self.logger.debug("[.compute_minute_median] self.raw_records is empty.")
             return
 
-        # Defensive check
+        # Validate structure
         if not all(isinstance(row, dict) for row in self.raw_records):
             self.logger.error(f"[.compute_minute_median] Invalid format in raw_records: {self.raw_records}")
             return
 
         df = pl.DataFrame(self.raw_records)
-        value_cols = [col for col in df.columns if col not in {"id", "checksum"} and df.schema[col] in {pl.Float64, pl.Float32}]
 
-        median_row = df.select([pl.median(col).alias(col) for col in value_cols])
+        # Select only float columns, excluding id/checksum
+        value_cols = [
+            col
+            for col, dtype in df.schema.items()
+            if col not in {"id", "checksum"} and dtype in {pl.Float64, pl.Float32}
+        ]
+
+        if not value_cols:
+            self.logger.debug("[.compute_minute_median] No numeric value columns to aggregate.")
+            self.raw_records.clear()
+            return
+
+        median_row = df.select([pl.col(c).median().alias(c) for c in value_cols])
+
         now = datetime.datetime.now(datetime.timezone.utc)
+        median_row = median_row.with_columns(
+            [
+                pl.lit("median").alias("id"),
+                pl.lit("").alias("checksum"),
+                pl.lit(now).cast(pl.Datetime("us", "UTC")).alias("dtm"),
+            ]
+        )
 
-        median_row = median_row.with_columns([
-            pl.lit("median").alias("id"),
-            pl.lit("").alias("checksum"),
-            pl.lit(now).cast(pl.Datetime("us", "UTC")).alias("dtm")
-        ])
-
+        # Ensure any columns present in df but absent in median also exist (as None)
         for col in df.columns:
             if col not in median_row.columns:
                 median_row = median_row.with_columns(pl.lit(None).alias(col))
 
+        # Consistent column order
         median_row = median_row.select(sorted(median_row.columns))
+
+        # Append and clear buffer
         self.df_minute = pl.concat([self.df_minute, median_row], how="diagonal")
         self.raw_records.clear()
 
-        # Fidas parameter map
-        map = {'60': "Cn [P/cm³]",
-               '61': "PM1 [mg/m³]",
-               '62': "PM2.5 [mg/m³]",
-               '63': "PM4 [mg/m³]",
-               '64': "PM10 [mg/m³]",
-               '65': "PMtotal [mg/m³]",
+        # Optional: quick log of key fields (adjust as you like)
+        _map = {
+            "60": "Cn [P/cm³]",
+            "61": "PM1 [mg/m³]",
+            "62": "PM2.5 [mg/m³]",
+            "63": "PM4 [mg/m³]",
+            "64": "PM10 [mg/m³]",
+            "65": "PMtotal [mg/m³]",
         }
-        values = {lbl: median_row[0, col] for col, lbl in map.items()}
+        values = {lbl: median_row.item(0, col) if col in median_row.columns else None for col, lbl in _map.items()}
         self.logger.info(f"[.compute_minute_median] row added: {values}")
-        # self.logger.info(f"[.compute_minute_median] row added: {str(median_row.to_dicts()[0])[:80]}[...]")
-        self.logger.debug(f"[.compute_minute_median] {median_row}")
 
-    def save_hourly(self, stage:bool=True):
+    # ---- PERSISTENCE / SCHEDULE ---------------------------------------------
+
+    def save_hourly(self, stage: bool = True):
+        """At the top of a new hour, write previous hour's df_minute to disk (and stage)."""
         self.logger.debug("[.save_hourly] entering ...")
         now = datetime.datetime.now(datetime.timezone.utc)
         if now.hour != self.current_hour.hour:
@@ -223,7 +328,10 @@ class FIDAS:
                     self.staging_path.mkdir(parents=True, exist_ok=True)
                     staging_path = self.staging_path / out_path.name
                     self.df_minute.write_parquet(staging_path)
-                self.logger.debug(f"[.save_hourly] hourly file saved to {out_path} and staged to {staging_path}")
+                self.logger.debug(
+                    f"[.save_hourly] hourly file saved to {out_path} and staged to {staging_path}"
+                )
+            # reset for the new hour
             self.df_minute = pl.DataFrame()
             self.current_hour = now.replace(minute=0, second=0, microsecond=0)
 
@@ -239,7 +347,6 @@ class FIDAS:
         schedule.every(1).hours.do(self.save_hourly)
         return
 
-
     def run(self):
         try:
             self.logger.info(schedule.get_jobs())
@@ -249,503 +356,3 @@ class FIDAS:
         except KeyboardInterrupt:
             print("Stopping FIDAS...")
             self.save_hourly()  # Save any remaining data on exit
-
-if __name__ == "__main__":
-    pass
-
-
-
-# import datetime as dt
-# import logging
-# import logging.handlers
-# import os
-# import shutil
-# import socket
-# import struct
-# import time
-# import warnings
-# import zipfile
-
-# import colorama
-# # from pymodbus.client.tcp import ModbusTcpClient
-# # from pymodbus.exceptions import ModbusException
-
-# # Instrument setup
-# # > 'accessories' > IADS > change from 'remove volatile/moisture compensation' to OFF
-# # > Control Panel >
-
-
-# # Text file format Fidas:
-# header = ['Date',
-# 'Time',
-# 'Comment',
-# 'PM1',
-# 'PM2.5',
-# 'PM4',
-# 'PM10',
-# 'PMtotal',
-# 'Number Concentration',
-# 'Humidity',
-# 'Temperature',
-# 'Pressure',
-# 'Flow',
-# 'Coincidence',
-# 'Pumps',
-# 'Weather station',
-# 'IADS',
-# 'Calibration',
-# 'LED',
-# 'Operating mode',
-# 'Device status',
-# 'PM1',
-# 'PM2.5',
-# 'PM4',
-# 'PM10',
-# 'PMtotal',
-# 'PM1_classic',
-# 'PM2.5_classic',
-# 'PM4_classic',
-# 'PM10_classic',
-# 'PMtotal_classic',
-# 'PMthoraic',
-# 'PMalveo',
-# 'PMrespirable',
-# 'Flowrate',
-# 'Velocity',
-# 'Coincidence',
-# 'Pump_output',
-# 'IADS_temperature',
-# 'Raw channel deviation',
-# 'LED temperature',
-# 'Temperature*',
-# 'Humidity*',
-# 'Pressure*',]
-
-# device_status = {'Scope':0,
-#                  'Auto':1,
-#                  'Manual':2,
-#                  'Idle':3,
-#                  'Calib':4,
-#                  'Offset':5,
-#                  'PDControl':6,
-#                  }
-
-
-
-# # class FIDAS:
-# #     def __init__(self, config: dict, name: str='fidas'):
-# #         """
-# #         Initialize the FIDAS 200 instrument class with parameters from a configuration file.
-
-# #         Args:
-# #             config (dict): general configuration
-# #         """
-# #         colorama.init(autoreset=True)
-
-# #         try:
-# #             # configure logging
-# #             _logger = f"{os.path.basename(config['logging']['file'])}".split('.')[0]
-# #             self.logger = logging.getLogger(f"{_logger}.{__name__}")
-
-# #             # read instrument control properties for later use
-# #             self._name = name
-# #             self._serial_number = config[name]['serial_number']
-# #             self._get_data = config[name]['get_data']
-
-# #             self.logger.info(f"Initialize FIDAS 200 (name: {self._name}  S/N: {self._serial_number})")
-
-# #             # configure tcp/ip
-# #             self._sockaddr = (config[name]['socket']['host'],
-# #                             config[name]['socket']['port'])
-# #             self._socktout = config[name]['socket']['timeout']
-# #             self._socksleep = config[name]['socket']['sleep']
-
-# #             root = os.path.expanduser(config['root'])
-
-# #             # configure data collection and reporting
-# #             self._sampling_interval = config[name]['sampling_interval']
-# #             self.reporting_interval = config[name]['reporting_interval']
-# #             if not (self.reporting_interval % 60)==0 and self.reporting_interval<=1440:
-# #                 raise ValueError('reporting_interval must be a multiple of 60 and less or equal to 1440 minutes.')
-
-# #             self.header = 'Fidas header\n'
-
-# #             # configure saving, staging and remote transfer
-# #             self.data_path = os.path.join(root, config['data'], config[name]['data_path'])
-# #             self.staging_path = os.path.join(root, config['staging'], config[name]['staging_path'])
-# #             self.remote_path = config[name]['remote_path']
-
-# #             # initialize data response
-# #             self._data = str()
-
-# #             # initialize data_file (path)
-# #             self.data_file = str()
-
-# #         except Exception as err:
-# #             self.logger.error(err)
-
-
-# #     def setup_schedules(self):
-# #         try:
-# #             # configure folders needed
-# #             os.makedirs(self.data_path, exist_ok=True)
-# #             os.makedirs(self.staging_path, exist_ok=True)
-
-# #             # configure data acquisition schedule
-# #             schedule.every(int(self._sampling_interval)).minutes.at(':00').do(self.accumulate_data)
-
-# #             # configure saving and staging schedules
-# #             if self.reporting_interval==10:
-# #                 self._file_timestamp_format = '%Y%m%d%H%M'
-# #                 minutes = [f"{self.reporting_interval*n:02}" for n in range(6) if self.reporting_interval*n < 6]
-# #                 for minute in minutes:
-# #                     schedule.every(1).hour.at(f"{minute}:01").do(self._save_and_stage_data)
-# #             elif self.reporting_interval==60:
-# #                 self._file_timestamp_format = '%Y%m%d%H'
-# #                 schedule.every(1).hour.at('00:01').do(self._save_and_stage_data)
-# #             elif self.reporting_interval==1440:
-# #                 self._file_timestamp_format = '%Y%m%d'
-# #                 schedule.every(1).day.at('00:00:01').do(self._save_and_stage_data)
-
-# #         except Exception as err:
-# #             self.logger.error(err)
-
-
-#     # def udp_ascii_retrieve(self) -> str:
-#     #     """
-#     #     Establish a connection and retrieve a record.
-
-#     #     :return: response of instrument, decoded
-#     #     """
-#     #     rcvd = str()
-
-#     #     try:
-#     #         # open socket connection as a client
-#     #         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM, ) as s:
-#     #             # connect to the server
-#     #             s.settimeout(self._socktout)
-#     #             s.bind(self._sockaddr)
-
-#     #             while True:
-#     #                 data, addr = s.recvfrom(1024)
-#     #                 if '>' in data.decode():
-#     #                     rcvd = f"{rcvd}{data.decode()}"
-#     #                     break
-
-#     #         return rcvd
-
-#     #     except Exception as err:
-#     #         self.logger.error(err)
-#     #         return str()
-
-
-#     # def accumulate_data(self):
-#     #     """
-#     #     Retrieve data from instrument during self.sampling_interval, compute median, add time stamp and append to self._data.
-#     #     """
-#     #     try:
-#     #         dtm = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-#     #         instant_data = self.udp_ascii_retrieve()
-#     #         self._data += f"{dtm} {instant_data}\n"
-#     #         self.logger.info(f"{self._name}, {_[:60]}[...]")
-
-#     #         return
-
-#     #     except Exception as err:
-#     #         self.logger.error(err)
-
-
-#     # def print_o3(self) -> None:
-#     #     try:
-#     #         if self._serial_com:
-#     #             o3 = self.serial_comm('o3').split()
-#     #         else:
-#     #             o3 = self.tcpip_comm('o3').split()
-#     #         self.logger.info(colorama.Fore.GREEN + f"{self._name}, {o3[0].upper()} {str(float(o3[1]))} {o3[2]}")
-
-#     #     except Exception as err:
-#     #         self.logger.error(colorama.Fore.RED + f"{err}")
-
-
-# #     def _save_data(self) -> None:
-# #         try:
-# #             data_file = str()
-# #             if self._data:
-# #                 # create appropriate file name and write mode
-# #                 timestamp = datetime.now().strftime(self._file_timestamp_format)
-# #                 data_file = os.path.join(self.data_path, f"49i-{timestamp}.dat")
-
-# #                 # configure file mode, open file and write to it
-# #                 if os.path.exists(data_file):
-# #                     with open(file=data_file, mode='a') as fh:
-# #                         fh.write(self._data)
-# #                 else:
-# #                     with open(file=data_file, mode='w') as fh:
-# #                         fh.write(self.header)
-# #                         fh.write(self._data)
-# #                 self.logger.info(f"file saved: {data_file}")
-
-# #                 # reset self._data
-# #                 self._data = str()
-
-# #             self.data_file = data_file
-# #             return
-
-# #         except Exception as err:
-# #             self.logger.error(err)
-
-
-# #     def _stage_file(self):
-# #         """ Create zip file from self.data_file and stage archive.
-# #         """
-# #         try:
-# #             if self.data_file:
-# #                 archive = os.path.join(self.staging_path, os.path.basename(self.data_file).replace('.dat', '.zip'))
-# #                 with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-# #                     zf.write(self.data_file, os.path.basename(self.data_file))
-# #                     self.logger.info(f"file staged: {archive}")
-
-# #         except Exception as err:
-# #             self.logger.error(err)
-
-
-# #     def _save_and_stage_data(self):
-# #         self._save_data()
-# #         self._stage_file()
-
-
-# # if __name__ == "__main__":
-# #     pass
-
-
-
-
-
-
-# # class ModbusTCPDriver:
-# #     def __init__(self, ip: str, port: int = 11231, unit_id: int = 1):
-# #         """
-# #         Initialize a Modbus TCP connection.
-
-# #         Args:
-# #             ip (str): IP address of the Modbus instrument.
-# #             port (int): TCP port number (default 502).
-# #             unit_id (int): Modbus slave/unit ID.
-# #         """
-# #         self.ip = ip
-# #         self.port = port
-# #         self.unit_id = unit_id
-# #         self.client = ModbusTcpClient(ip, port=port)
-# #         self.connected = False
-
-# #     def connect(self):
-# #         """Establish the TCP connection."""
-# #         self.connected = self.client.connect()
-# #         if not self.connected:
-# #             raise ConnectionError(f"Failed to connect to {self.ip}:{self.port}")
-
-# #     def close(self):
-# #         """Close the TCP connection."""
-# #         self.client.close()
-# #         self.connected = False
-
-# #     def read_holding_registers(self, address: int, count: int):
-# #         """Read holding registers starting at address."""
-# #         try:
-# #             response = self.client.read_holding_registers(address=address, count=count, slave=self.unit_id)
-# #             if response.isError():
-# #                 raise ModbusException(f"Error reading registers at {address}: {response}")
-# #             return response.registers
-# #         except ModbusException as e:
-# #             print(f"Modbus error: {e}")
-# #             return None
-
-# #     def write_single_register(self, address: int, value: int):
-# #         """Write a single value to one holding register."""
-# #         try:
-# #             response = self.client.write_register(address=address, value=value, slave=self.unit_id)
-# #             if response.isError():
-# #                 raise ModbusException(f"Error writing to register {address}: {response}")
-# #             return True
-# #         except ModbusException as e:
-# #             print(f"Modbus error: {e}")
-# #             return False
-
-# #     def __enter__(self):
-# #         self.connect()
-# #         return self
-
-# #     def __exit__(self, exc_type, exc_val, exc_tb):
-# #         self.close()
-
-
-
-
-
-
-# import argparse
-# import logging
-# import os
-# import re
-# import time
-# from datetime import datetime
-# from typing import Callable
-
-# import polars as pl
-# import schedule
-
-
-# def setup_logging() -> None:
-#     logging.basicConfig(
-#         level=logging.INFO,
-#         format="%(asctime)s [%(levelname)s] %(message)s",
-#     )
-
-
-# def read_from_instrument() -> str:
-#     # Replace this with your actual instrument I/O
-#         """
-#         Establish a connection and retrieve a record.
-
-#         :return: response of instrument, decoded
-#         """
-#         rcvd = str()
-#         _socktout = 2
-#         _sockaddr = ('192.168.2.129', 56790)
-
-#         try:
-#             # open socket connection as a client
-#             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM, ) as s:
-#                 # connect to the server
-#                 s.settimeout(_socktout)
-#                 s.bind(_sockaddr)
-
-#                 while True:
-#                     data, addr = s.recvfrom(1024)
-#                     if '>' in data.decode():
-#                         rcvd = f"{rcvd}{data.decode()}"
-#                         break
-
-#             print(f"{time.time()} {rcvd}")
-
-#             return rcvd
-
-#         except Exception as err:
-#             print(err)
-#             return str()
-#     # return '6082<sendVal 0=0.0;1=1.0;2=2.0;8=4.8;14=42.4;74=0.0>3E'
-
-
-# def collect_and_aggregate_polars(
-#     read_func: Callable[[], str],
-#     fetch_interval_seconds: int,
-#     output_dir: str
-# ) -> None:
-#     """
-#     Collects instrument data for 1 minute, parses into a Polars DataFrame,
-#     computes medians, and saves results to a timestamped CSV file.
-#     """
-#     logging.info("Collecting data...")
-#     rows = []
-#     end_time = time.time() + 60
-
-#     while time.time() < end_time:
-#         line = read_func()
-#         match = re.search(r"<sendVal (.+?)>", line)
-#         if match:
-#             payload = match.group(1)
-#             parsed = {}
-#             for item in payload.split(";"):
-#                 if "=" not in item:
-#                     continue
-#                 key_str, value_str = item.split("=")
-#                 try:
-#                     key = f"v{int(key_str)}"
-#                     value = float(value_str)
-#                     if not value_str.lower() == "nan":
-#                         parsed[key] = value
-#                 except ValueError:
-#                     continue
-#             if parsed:
-#                 rows.append(parsed)
-#         time.sleep(fetch_interval_seconds)
-
-#     if not rows:
-#         logging.warning("No valid data collected in this interval.")
-#         return
-
-#     df = pl.DataFrame(rows).fill_nan(None)
-#     median_row = df.select(pl.all().median()).to_dict(as_series=False)
-
-#     now = dt.datetime.now(dt.timezone.utc)
-#     timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
-#     filename = os.path.join(output_dir, f"fidas-{now.strftime('%Y%m%d%H')}.csv")
-
-#     sorted_keys = sorted(median_row.keys())
-#     file_exists = os.path.exists(filename)
-
-#     os.makedirs(output_dir, exist_ok=True)
-#     with open(filename, "a") as f:
-#         if not file_exists:
-#             f.write("timestamp," + ",".join(sorted_keys) + "\n")
-#         line = timestamp + "," + ",".join(
-#             f"{median_row[k]:.4f}" if median_row[k] is not None else "NaN"
-#             for k in sorted_keys
-#         )
-#         f.write(line + "\n")
-
-#     logging.info("Wrote 1-minute aggregate to %s", filename)
-
-
-# def main():
-#     parser = argparse.ArgumentParser(description="Fidas Data Collector")
-#     parser.add_argument("--interval", type=int, default=5,
-#                         help="Raw data sampling interval in seconds (default: 5)")
-#     parser.add_argument("--output", type=str, default=".",
-#                         help="Output directory for CSV files")
-#     args = parser.parse_args()
-
-#     setup_logging()
-#     logging.info("Starting Fidas data collector...")
-#     schedule.every(1).minutes.do(
-#         collect_and_aggregate_polars,
-#         read_func=read_from_instrument,
-#         fetch_interval_seconds=args.interval,
-#         output_dir=args.output
-#     )
-
-#     while True:
-#         schedule.run_pending()
-#         time.sleep(1)
-
-
-# if __name__ == "__main__":
-#     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# # if __name__ == "__main__":
-#     # ip = "192.168.0.216"  # your instrument's IP
-#     # port = 502            # default Modbus TCP port
-#     # unit_id = 1           # check your instrument docs
-
-#     # with ModbusTCPDriver(ip, port, unit_id) as driver:
-#     #     registers = driver.read_holding_registers(address=0, count=10)
-#     #     if registers is not None:
-#     #         print("Register values:", registers)
-#     #     else:
-#     #         print("Failed to read registers")
