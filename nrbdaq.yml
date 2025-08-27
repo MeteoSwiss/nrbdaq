@@ -119,9 +119,9 @@ fidas:
   socket:
     host: 192.168.2.114
     port: 56790
-    buffer_size: 8192
-    timeout: 5
-    sleep: 0.1
+    buffer_size: 65535
+    timeout: 0      # no longer used
+    sleep: 0.005
   fetch_interval_seconds: 5
   reporting_interval: 60
   data_path: fidas

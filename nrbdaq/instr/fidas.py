@@ -5,7 +5,8 @@ import schedule
 import time
 from pathlib import Path
 from typing import Any
-# import logging
+import threading
+from collections import deque
 from nrbdaq.utils.utils import setup_logging
 
 class FIDAS:
@@ -43,6 +44,11 @@ class FIDAS:
         self.df_minute = pl.DataFrame()
         self.current_hour = datetime.datetime.now(datetime.timezone.utc).replace(minute=0, second=0, microsecond=0)
 
+        self._frames = deque(maxlen=20000)        # raw frames ready for parse
+        self._running = False
+        self._reader_thread: threading.Thread | None = None
+
+
     def __enter__(self):
         try:
             self.connect_udp()
@@ -52,42 +58,73 @@ class FIDAS:
             self.logger.error(f"[FIDAS.__enter__] {err} {self.local_ip}:{self.local_port}")
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self._running = False
+        try:
+            if self._reader_thread and self._reader_thread.is_alive():
+                self._reader_thread.join(timeout=0.5)
+        except Exception:
+            pass
         if self.sock:
             self.sock.close()
-            if not self.df_minute.is_empty():
-                self.save_hourly()
+        if not self.df_minute.is_empty():
+            self.save_hourly()
         self.logger.info("[FIDAS.__exit__] Goodbye!", extra={'to_logfile': True})
+
 
     def connect_udp(self):
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            # important: set options BEFORE bind
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+            except OSError:
+                pass  # not available everywhere
+            # give headroom for bursts
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 4 * 1024 * 1024)
+
+            # bind (use specific NIC IP if needed)
             self.sock.bind((self.local_ip, self.local_port))
-            self.logger.info(f"[FIDAS.__enter__] Listening on {self.local_ip}:{self.local_port}")
-            return
+            self.sock.setblocking(False)
+
+            self._running = True
+            self._reader_thread = threading.Thread(target=self._reader_loop, daemon=True)
+            self._reader_thread.start()
+
+            self.logger.info(f"[connect_udp] Listening on {self.local_ip}:{self.local_port}")
         except Exception as err:
-            self.logger.error(f"[.connect_udp] {err}")
+            self.logger.error(f"[connect_udp] {err}")
+
+    def _reader_loop(self):
+        buf = ""  # carry-over for partial frames
+        while self._running:
+            try:
+                data, _ = self.sock.recvfrom(self.buffer_size)
+                buf += data.decode("ascii", errors="ignore")
+                # slice complete frames terminated by '>'
+                while True:
+                    end = buf.find('>')
+                    if end == -1:
+                        break
+                    frame = buf[:end+1]       # include '>'
+                    buf = buf[end+1:]         # keep remainder
+                    # push frame for later parsing
+                    self._frames.append(frame)
+            except BlockingIOError:
+                # no data right now; yield briefly
+                time.sleep(0.005)
+            except Exception as e:
+                self.logger.error(f"[reader] {e}")
+                time.sleep(0.1)
+        # store any tail when stopping
+        self.buffer = buf
+
 
     def receive_udp_record(self) -> str:
-        if self.sock is None:
-            return str()
-        try:
-            self.sock.settimeout(self.fetch_interval_seconds)
-            while True:
-                data, _ = self.sock.recvfrom(self.buffer_size)
-                self.buffer += data.decode('ascii', errors='ignore')
-                if '>' in self.buffer:
-                    raw_record = self.buffer
-                    self.buffer = str()
-                    return raw_record
-            # data, _ = self.sock.recvfrom(self.buffer_size)
-            # self.buffer += data.decode('ascii', errors='ignore')
-            # if '>' in self.buffer:
-            #     raw, self.buffer = self.buffer.split('>', 1)
-            #     print(raw)
-            #     return raw + '>'
-        except socket.timeout:
-            pass
-        return str()
+        if self._frames:
+            return self._frames.popleft()
+        return ""
+
 
     def parse_record(self, record: str) -> "dict[str, Any]":
         self.logger.debug("[.parse_record] entering function")
