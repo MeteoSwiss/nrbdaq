@@ -57,20 +57,9 @@ class AE31:
 
             self.data_path = os.path.join(root, config['data'], config['AE31']['data_path'])
             os.makedirs(self.data_path, exist_ok=True)
-            # schedule.every(int(self.sampling_interval)).minutes.at(':00').do(self.accumulate_data)
-            # schedule.every(int(self.sampling_interval)).minutes.at(':01').do(self._save_data)
 
             # configure staging
             self.staging_path = os.path.join(root, config['staging'], config['AE31']['staging_path'])
-            # os.makedirs(self.staging_path, exist_ok=True)
-            # if self.reporting_interval==1440:
-            #     schedule.every(1).day.at('00:00:05').do(self._save_and_stage_data)
-            # elif self.reporting_interval==60:
-            #     schedule.every(1).hour.at('00:05').do(self._save_and_stage_data)
-
-            # configure archive
-            # self.archive_path = os.path.join(root, config['AE31']['archive'])
-            # os.makedirs(self.archive_path, exist_ok=True)
 
             # configure remote transfer
             self.remote_path = config['AE31']['remote_path']
@@ -90,7 +79,6 @@ class AE31:
             # configure folders needed
             os.makedirs(self.data_path, exist_ok=True)
             os.makedirs(self.staging_path, exist_ok=True)
-            # os.makedirs(self.archive_path, exist_ok=True)
 
             # configure data acquisition schedule
             schedule.every(self.sampling_interval).minutes.at(':00').do(self.accumulate_data)

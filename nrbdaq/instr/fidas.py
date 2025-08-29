@@ -37,11 +37,7 @@ class FIDAS:
     """
 
     # ---- INIT / CONTEXT -----------------------------------------------------
-    def __init__(
-        self,
-        config: dict,
-        name: str = "fidas",
-    ):
+    def __init__(self, config: dict, name: str = "fidas"):
         self.name = name
 
         # configure logging
@@ -282,16 +278,30 @@ class FIDAS:
             ]
         )
 
-        # Ensure any columns present in df but absent in median also exist (as None)
-        for col in df.columns:
-            if col not in median_row.columns:
-                median_row = median_row.with_columns(pl.lit(None).alias(col))
+        # Polars type checking and setting
+        numeric_cols = [c for c in df.columns if c not in {"id", "checksum", "dtm"}]
+        missing = [c for c in numeric_cols if c not in median_row.columns]
+        if missing:
+            median_row = median_row.with_columns(
+                [pl.lit(None, dtype=pl.Float64).alias(c) for c in missing]
+            )
+
+        # ensure id/checksum exist with Utf8 dtype
+        for m in ("id", "checksum"):
+            if m not in median_row.columns:
+                median_row = median_row.with_columns(pl.lit(None, dtype=pl.Utf8).alias(m))
+
+        # make sure dtm is a proper timezone-aware Datetime
+        if "dtm" in median_row.columns:
+            median_row = median_row.with_columns(pl.col("dtm").cast(pl.Datetime("us", "UTC")))
+        else:
+            median_row = median_row.with_columns(pl.lit(None).cast(pl.Datetime("us", "UTC")).alias("dtm"))
 
         # Consistent column order
         median_row = median_row.select(sorted(median_row.columns))
 
         # Append and clear buffer
-        self.df_minute = pl.concat([self.df_minute, median_row], how="diagonal")
+        self._append_minute_row_df(median_row)
         self.raw_records.clear()
 
         # Optional: quick log of key fields (adjust as you like)
@@ -310,6 +320,13 @@ class FIDAS:
     def save_hourly(self, stage: bool = True):
         """At the top of a new hour, write previous hour's df_minute to disk (and stage)."""
         self.logger.debug("[.save_hourly] entering ...")
+
+        # fold in the last minute that ended at :00
+        try:
+            self.compute_minute_median()
+        except Exception:
+            pass
+
         now = datetime.datetime.now(datetime.timezone.utc)
         if now.hour != self.current_hour.hour:
             if not self.df_minute.is_empty():
@@ -328,56 +345,63 @@ class FIDAS:
             # reset for the new hour
             self.df_minute = pl.DataFrame()
             self.current_hour = now.replace(minute=0, second=0, microsecond=0)
-    # def save_hourly(self, stage: bool = True):
-    #     """At the top of a new hour, write previous hour's df_minute to disk (and stage)."""
-    #     self.logger.debug("[.save_hourly] entering ...")
-    #     now = datetime.datetime.now(datetime.timezone.utc)
-    #     if now.hour != self.current_hour.hour:
-    #         if not self.df_minute.is_empty():
-    #             out_path = self.ensure_output_path(self.current_hour)
 
-    #             # Coerce the in-memory hour first
-    #             df_hour = self._coerce_nulls(self.df_minute)
+    def _dtype_for(self, col: str):
+        import polars as pl
+        if col == "dtm":
+            return pl.Datetime("us", "UTC")
+        if col in {"id", "checksum"}:
+            return pl.Utf8
+        return pl.Float64  # default for measurements
 
-    #             if out_path.exists():
-    #                 existing = pl.read_parquet(out_path)
-    #                 # Coerce existing on disk too (old files may have pl.Null dtypes)
-    #                 existing = self._coerce_nulls(existing)
-    #                 df_hour = pl.concat([existing, df_hour], how="diagonal")
-    #                 # Coerce again after concat (belt and suspenders)
-    #                 df_hour = self._coerce_nulls(df_hour)
-    #                 df_hour = df_hour.unique()
+    def _append_minute_row_df(self, one_row: pl.DataFrame) -> None:
+        """
+        Append a single-row DataFrame to self.df_minute with a stable, concrete schema.
+        Ensures no column remains pl.Null-typed.
+        """
+        import polars as pl
 
-    #             # Final safety before writing
-    #             df_hour = self._coerce_nulls(df_hour)
-
-    #             df_hour.write_parquet(out_path)
-    #             if stage:
-    #                 self.staging_path.mkdir(parents=True, exist_ok=True)
-    #                 staging_path = self.staging_path / out_path.name
-    #                 df_hour.write_parquet(staging_path)
-    #             self.logger.debug(f"[.save_hourly] hourly file saved to {out_path}"
-    #                             f"{' and staged to ' + str(staging_path) if stage else ''}")
-
-    #         # reset for the new hour
-    #         self.df_minute = pl.DataFrame()
-    #         self.current_hour = now.replace(minute=0, second=0, microsecond=0)
-
-
-    def _coerce_nulls(df: pl.DataFrame) -> pl.DataFrame:
-        if df.is_empty(): return df
+        # Ensure canonical dtypes on the incoming row
         casts = []
-        for c, dt in df.schema.items():
-            if dt == pl.Null:
-                casts.append(
-                    pl.col(c).cast(pl.Utf8 if c in {"id","checksum"} else pl.Float64)
-                )
+        if "dtm" in one_row.columns:
+            casts.append(pl.col("dtm").cast(pl.Datetime("us", "UTC")))
+        if "id" in one_row.columns:
+            casts.append(pl.col("id").cast(pl.Utf8, strict=False))
+        if "checksum" in one_row.columns:
+            casts.append(pl.col("checksum").cast(pl.Utf8, strict=False))
         if casts:
-            df = df.with_columns(casts)
-        if "dtm" in df.columns:
-            df = df.with_columns(pl.col("dtm").cast(pl.Datetime("us","UTC")))
-        return df
+            one_row = one_row.with_columns(casts)
 
+        # If the incoming row still has any Null-typed cols, concretize them
+        null_in_row = [c for c, dt in one_row.schema.items() if dt == pl.Null]
+        if null_in_row:
+            one_row = one_row.with_columns([pl.col(c).cast(self._dtype_for(c)) for c in null_in_row])
+
+        if self.df_minute.is_empty():
+            # keep a deterministic order
+            self.df_minute = one_row.select(sorted(one_row.columns))
+            return
+
+        # Extend self.df_minute with any new cols from the row
+        missing_in_df = [c for c in one_row.columns if c not in self.df_minute.columns]
+        if missing_in_df:
+            self.df_minute = self.df_minute.with_columns(
+                [pl.lit(None, dtype=one_row.schema.get(c, self._dtype_for(c))).alias(c) for c in missing_in_df]
+            )
+
+        # Extend the row with any cols present in df_minute but missing in the row
+        missing_in_row = [c for c in self.df_minute.columns if c not in one_row.columns]
+        if missing_in_row:
+            one_row = one_row.with_columns(
+                [pl.lit(None, dtype=self.df_minute.schema[c]).alias(c) for c in missing_in_row]
+            )
+
+        # Reorder + soft-cast to df schema, then append
+        one_row = one_row.select(self.df_minute.columns)
+        final_casts = [pl.col(c).cast(self.df_minute.schema[c], strict=False) for c in self.df_minute.columns]
+        one_row = one_row.with_columns(final_casts)
+
+        self.df_minute = pl.concat([self.df_minute, one_row], how="vertical_relaxed")
 
     def ensure_output_path(self, dt: datetime.datetime) -> Path:
         folder = self.data_dir / f"{dt.year:04d}" / f"{dt.month:02d}" / f"{dt.day:02d}"
@@ -387,8 +411,8 @@ class FIDAS:
 
     def setup_schedules(self):
         schedule.every(self.fetch_interval_seconds).seconds.do(self.collect_raw_record)
-        schedule.every(1).minutes.do(self.compute_minute_median)
-        schedule.every(1).hours.do(self.save_hourly)
+        schedule.every().minute.at(':00').do(self.compute_minute_median)
+        schedule.every().hour.at('00:01').do(self.save_hourly)
         return
 
     def run(self):
