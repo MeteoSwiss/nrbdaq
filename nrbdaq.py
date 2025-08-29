@@ -76,12 +76,12 @@ def main():
     logger.info(schedule.get_jobs(), extra={'to_logfile': True})
 
     # align start with a multiple-of-minute timestamp
-    seconds_left = seconds_to_next_n_minutes(1)
-    while seconds_left > 0:
-        print(f"Time remaining: {seconds_left:0.1f} s", end="\r")
-        dt = 1 #0.2
-        time.sleep(dt)
-        seconds_left -= dt
+    # seconds_left = seconds_to_next_n_minutes(1)
+    # while seconds_left > 0:
+    #     print(f"Time remaining: {seconds_left:0.1f} s", end="\r")
+    #     dt = 1 #0.2
+    #     time.sleep(dt)
+    #     seconds_left -= dt
     logger.info("Beginning data acquisition and file transfer ...")
 
     # start jobs
