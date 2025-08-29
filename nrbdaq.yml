@@ -103,7 +103,7 @@ AVO:
     - set pres comp on
     - set range 1
     - set format 00
-    - set avg time 3
+    - set avg time 1
     - set lrec per 1
     - set lrec format 0
     - set save params

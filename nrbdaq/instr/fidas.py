@@ -18,7 +18,7 @@ class FIDAS:
     """
     FIDAS UDP data collector with minute aggregation.
 
-    Public API (unchanged):
+    Public API
       - __init__(config: dict, name: str='fidas')
       - __enter__ / __exit__
       - connect_udp()
@@ -37,7 +37,6 @@ class FIDAS:
     """
 
     # ---- INIT / CONTEXT -----------------------------------------------------
-
     def __init__(
         self,
         config: dict,
@@ -104,7 +103,6 @@ class FIDAS:
         self.logger.info("[FIDAS.__exit__] Goodbye!", extra={"to_logfile": True})
 
     # ---- SOCKET / IO --------------------------------------------------------
-
     def connect_udp(self):
         """Open UDP socket and bind; use restart-friendly options."""
         try:
@@ -191,7 +189,6 @@ class FIDAS:
         return str()
 
     # ---- PARSING / AGG ------------------------------------------------------
-
     def parse_record(self, record: str) -> "dict[str, Any]":
         """
         Parse a normalized record: "{id}<sendVal k=v;...>{checksum}"
@@ -310,28 +307,6 @@ class FIDAS:
         self.logger.info(f"[.compute_minute_median] row added: {values}")
 
     # ---- PERSISTENCE / SCHEDULE ---------------------------------------------
-
-    # def save_hourly(self, stage: bool = True):
-    #     """At the top of a new hour, write previous hour's df_minute to disk (and stage)."""
-    #     self.logger.debug("[.save_hourly] entering ...")
-    #     now = datetime.datetime.now(datetime.timezone.utc)
-    #     if now.hour != self.current_hour.hour:
-    #         if not self.df_minute.is_empty():
-    #             out_path = self.ensure_output_path(self.current_hour)
-    #             if out_path.exists():
-    #                 existing = pl.read_parquet(out_path)
-    #                 self.df_minute = pl.concat([existing, self.df_minute], how="diagonal").unique()
-    #             self.df_minute.write_parquet(out_path)
-    #             if stage:
-    #                 self.staging_path.mkdir(parents=True, exist_ok=True)
-    #                 staging_path = self.staging_path / out_path.name
-    #                 self.df_minute.write_parquet(staging_path)
-    #             self.logger.debug(
-    #                 f"[.save_hourly] hourly file saved to {out_path} and staged to {staging_path}"
-    #             )
-    #         # reset for the new hour
-    #         self.df_minute = pl.DataFrame()
-    #         self.current_hour = now.replace(minute=0, second=0, microsecond=0)
     def save_hourly(self, stage: bool = True):
         """At the top of a new hour, write previous hour's df_minute to disk (and stage)."""
         self.logger.debug("[.save_hourly] entering ...")
@@ -339,33 +314,54 @@ class FIDAS:
         if now.hour != self.current_hour.hour:
             if not self.df_minute.is_empty():
                 out_path = self.ensure_output_path(self.current_hour)
-
-                # Coerce the in-memory hour first
-                df_hour = self._coerce_nulls(self.df_minute)
-
                 if out_path.exists():
                     existing = pl.read_parquet(out_path)
-                    # Coerce existing on disk too (old files may have pl.Null dtypes)
-                    existing = self._coerce_nulls(existing)
-                    df_hour = pl.concat([existing, df_hour], how="diagonal")
-                    # Coerce again after concat (belt and suspenders)
-                    df_hour = self._coerce_nulls(df_hour)
-                    df_hour = df_hour.unique()
-
-                # Final safety before writing
-                df_hour = self._coerce_nulls(df_hour)
-
-                df_hour.write_parquet(out_path)
+                    self.df_minute = pl.concat([existing, self.df_minute], how="diagonal").unique()
+                self.df_minute.write_parquet(out_path)
                 if stage:
                     self.staging_path.mkdir(parents=True, exist_ok=True)
                     staging_path = self.staging_path / out_path.name
-                    df_hour.write_parquet(staging_path)
-                self.logger.debug(f"[.save_hourly] hourly file saved to {out_path}"
-                                f"{' and staged to ' + str(staging_path) if stage else ''}")
-
+                    self.df_minute.write_parquet(staging_path)
+                self.logger.debug(
+                    f"[.save_hourly] hourly file saved to {out_path} and staged to {staging_path}"
+                )
             # reset for the new hour
             self.df_minute = pl.DataFrame()
             self.current_hour = now.replace(minute=0, second=0, microsecond=0)
+    # def save_hourly(self, stage: bool = True):
+    #     """At the top of a new hour, write previous hour's df_minute to disk (and stage)."""
+    #     self.logger.debug("[.save_hourly] entering ...")
+    #     now = datetime.datetime.now(datetime.timezone.utc)
+    #     if now.hour != self.current_hour.hour:
+    #         if not self.df_minute.is_empty():
+    #             out_path = self.ensure_output_path(self.current_hour)
+
+    #             # Coerce the in-memory hour first
+    #             df_hour = self._coerce_nulls(self.df_minute)
+
+    #             if out_path.exists():
+    #                 existing = pl.read_parquet(out_path)
+    #                 # Coerce existing on disk too (old files may have pl.Null dtypes)
+    #                 existing = self._coerce_nulls(existing)
+    #                 df_hour = pl.concat([existing, df_hour], how="diagonal")
+    #                 # Coerce again after concat (belt and suspenders)
+    #                 df_hour = self._coerce_nulls(df_hour)
+    #                 df_hour = df_hour.unique()
+
+    #             # Final safety before writing
+    #             df_hour = self._coerce_nulls(df_hour)
+
+    #             df_hour.write_parquet(out_path)
+    #             if stage:
+    #                 self.staging_path.mkdir(parents=True, exist_ok=True)
+    #                 staging_path = self.staging_path / out_path.name
+    #                 df_hour.write_parquet(staging_path)
+    #             self.logger.debug(f"[.save_hourly] hourly file saved to {out_path}"
+    #                             f"{' and staged to ' + str(staging_path) if stage else ''}")
+
+    #         # reset for the new hour
+    #         self.df_minute = pl.DataFrame()
+    #         self.current_hour = now.replace(minute=0, second=0, microsecond=0)
 
 
     def _coerce_nulls(df: pl.DataFrame) -> pl.DataFrame:
@@ -381,7 +377,6 @@ class FIDAS:
         if "dtm" in df.columns:
             df = df.with_columns(pl.col("dtm").cast(pl.Datetime("us","UTC")))
         return df
-
 
 
     def ensure_output_path(self, dt: datetime.datetime) -> Path:
