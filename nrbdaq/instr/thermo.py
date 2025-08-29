@@ -116,7 +116,7 @@ class Thermo49i:
             self.logger.error(err)
 
 
-    def tcpip_comm(self, cmd: str) -> str:
+    def tcpip_comm(self, cmd: str, tidy: bool=True) -> str:
         """
         Send a command and retrieve the response. Assumes an open connection.
 
@@ -146,9 +146,10 @@ class Thermo49i:
             rcvd = rcvd.decode()
             # remove checksum after and including the '*'
             rcvd = rcvd.split("*")[0]
-            # remove echo before and including '\n'
-            # rcvd = rcvd.replace(f"{cmd}\n", "")
-            rcvd = rcvd.replace(cmd, "").strip()
+
+            if tidy:
+                # remove echo before and including '\n'
+                rcvd = rcvd.replace(cmd, "").strip()
 
             return rcvd
 
@@ -157,7 +158,7 @@ class Thermo49i:
             return str()
 
 
-    def serial_comm(self, cmd: str, tidy=True) -> str:
+    def serial_comm(self, cmd: str, tidy: bool=True) -> str:
         """
         Send a command and retrieve the response. Assumes an open connection.
 
@@ -175,10 +176,13 @@ class Thermo49i:
                 time.sleep(0.1)
 
             rcvd = rcvd.decode()
+
             # remove checksum after and including the '*'
             rcvd = rcvd.split("*")[0]
-            # remove echo before and including '\n'
-            rcvd = rcvd.replace(cmd, "").strip()
+
+            if tidy:
+                # remove echo before and including '\n'
+                rcvd = rcvd.replace(cmd, "").strip()
 
             return rcvd
 
@@ -210,9 +214,9 @@ class Thermo49i:
         try:
             for cmd in self._get_config:
                 if self._serial_com:
-                    cfg.append(self.serial_comm(cmd))
+                    cfg.append(self.serial_comm(cmd, tidy=False))
                 else:
-                    cfg.append(self.tcpip_comm(cmd))
+                    cfg.append(self.tcpip_comm(cmd, tidy=False))
 
             self.logger.info(f"{self._name}, Configuration read as: {cfg}")
 
@@ -250,7 +254,7 @@ class Thermo49i:
 
     def set_config(self) -> list:
         """
-        Set configuration of instrument and optionally write to log.
+        Set configuration of instrument and write to log.
 
         :return (err, cfg) configuration set or errors, if any.
         """
@@ -259,9 +263,9 @@ class Thermo49i:
         try:
             for cmd in self._set_config:
                 if self._serial_com:
-                    cfg.append(self.serial_comm(cmd))
+                    cfg.append(self.serial_comm(cmd, tidy=False))
                 else:
-                    cfg.append(self.tcpip_comm(cmd))
+                    cfg.append(self.tcpip_comm(cmd, tidy=False))
                 time.sleep(1)
 
             self.logger.info(f"{self._name}, Configuration set to: {cfg}")
