@@ -52,7 +52,7 @@ def main():
 
     if config.get('hmp110-ae31', None):
         from nrbdaq.instr.vaisala import HMP110ASCII
-        hmp110_ae31 = HMP110ASCII(name='hmp110-ae33', config=config)
+        hmp110_ae31 = HMP110ASCII(name='hmp110-ae31', config=config)
         hmp110_ae31.setup_schedules()
         remote_path = os.path.join(sftp.remote_path, hmp110_ae31.remote_path)
         sftp.setup_transfer_schedules(local_path=hmp110_ae31.staging_path,
