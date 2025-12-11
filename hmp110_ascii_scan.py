@@ -45,7 +45,7 @@ CANDIDATES = [
 COMMANDS = [
     b"SEND 1\r",   # one-off reading
     b"SEND 2\r",   # one-off reading
-    # b"SEND 3\r",   # one-off reading
+    b"SEND 3\r",   # one-off reading
 ]
 
 def score_response(data: bytes) -> Tuple[float, str]:
