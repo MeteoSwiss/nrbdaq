@@ -26,7 +26,7 @@ import serial
 
 
 # You can override this via --port on the CLI
-PORT_DEFAULT = "COM5"
+PORT_DEFAULT = "/dev/ttyUSB8"
 
 # Candidate (baudrate, parity, stopbits, bytesize) combinations.
 # Based on HMP60/110 manual defaults and allowed SERI settings.
