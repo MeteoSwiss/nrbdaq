@@ -42,17 +42,11 @@ CANDIDATES = [
     # (19200, serial.PARITY_EVEN, serial.STOPBITS_ONE, serial.SEVENBITS),
     # (19200, serial.PARITY_ODD,  serial.STOPBITS_ONE, serial.SEVENBITS),
 ]
-
-
 COMMANDS = [
-    # b"? 4\r",      # device info
-    # b"?? 4\r",     # POLL mode info
-    # b"SEND\r",   # one-off reading
+    b"SEND 1\r",   # one-off reading
+    b"SEND 2\r",   # one-off reading
     b"SEND 3\r",   # one-off reading
-    b"SEND 4\r",   # one-off reading
-    # b"R\r",      # start continuous output
 ]
-
 
 def score_response(data: bytes) -> Tuple[float, str]:
     """
