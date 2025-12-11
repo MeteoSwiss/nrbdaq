@@ -40,6 +40,25 @@ def main():
                                   remote_path=remote_path,
                                   interval=ae31.reporting_interval)
 
+    # setup HMP110 data acquisition and data transfer
+    if config.get('hmp110-inlet', None):
+        from nrbdaq.instr.vaisala import HMP110ASCII
+        hmp110_inlet = HMP110ASCII(name='hmp110-inlet', config=config)
+        hmp110_inlet.setup_schedules()
+        remote_path = os.path.join(sftp.remote_path, hmp110_inlet.remote_path)
+        sftp.setup_transfer_schedules(local_path=hmp110_inlet.staging_path,
+                                      remote_path=remote_path,
+                                      interval=hmp110_inlet.reporting_interval)
+
+    if config.get('hmp110-ae33', None):
+        from nrbdaq.instr.vaisala import HMP110ASCII
+        hmp110_ae31 = HMP110ASCII(name='hmp110-ae33', config=config)
+        hmp110_ae31.setup_schedules()
+        remote_path = os.path.join(sftp.remote_path, hmp110_ae31.remote_path)
+        sftp.setup_transfer_schedules(local_path=hmp110_ae31.staging_path,
+                                      remote_path=remote_path,
+                                      interval=hmp110_ae31.reporting_interval)
+
     # setup Nairobi AVO data download, staging and transfer
     data_path = os.path.join(os.path.expanduser(config['root']), config['data'], config['AVO']['data_path'])
     staging_path = os.path.join(os.path.expanduser(config['root']), config['staging'], config['AVO']['staging_path'])

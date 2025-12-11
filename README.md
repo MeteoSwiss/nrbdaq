@@ -56,11 +56,15 @@ $ kill <pid>
 
 ## list USB / serial ports
 $ dmesg | grep tty
+$ lsusb
+
 ## How-to operate Get red-y MFCs
 1. Install cable PPDM-U driver from /resources
 2. Install get red-y MFC software
 3. Plug in USB cable, check COM port used in device manager
 4. Start get red-y software, select port, search for device, stop search once found
+
+
 
 ## Setup
 2024-10-22/jkl
