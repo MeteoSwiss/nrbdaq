@@ -44,8 +44,8 @@ CANDIDATES = [
 ]
 COMMANDS = [
     b"SEND 1\r",   # one-off reading
-    b"SEND 2\r",   # one-off reading
-    b"SEND 3\r",   # one-off reading
+    # b"SEND 2\r",   # one-off reading
+    # b"SEND 3\r",   # one-off reading
 ]
 
 def score_response(data: bytes) -> Tuple[float, str]:
@@ -122,7 +122,7 @@ def try_setting(
                 ser.flush()
                 cmd_index += 1
 
-            time.sleep(0.1)
+            time.sleep(0.2)
             waiting = ser.in_waiting
             if waiting:
                 chunk = ser.read(waiting)
