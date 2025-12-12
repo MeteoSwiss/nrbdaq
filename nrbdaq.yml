@@ -126,7 +126,7 @@ AVO:
 
 fidas:
   socket:
-    host: 192.168.2.114
+    host: 192.168.2.223   # Important: read README.md
     port: 56790
     buffer_size: 65535
     timeout: 0      # no longer used
@@ -141,7 +141,7 @@ hmp110-inlet:
     type: Vaisala HMP110
     id: 1     # mainfold
     serial_number: U2110079  # aerosol inlet manyfold
-    port: /dev/ttyUSB2
+    port: /dev/ttyUSB1
     data_header: dtm,T,RH,Td
     sampling_interval: 1        # minutes. How often should data be requested from instrument?
     reporting_interval: 60
@@ -154,7 +154,7 @@ hmp110-ae31:
     type: Vaisala HMP110
     id: 2     # inlet AE31
     serial_number: M4730288  # inlet AE31
-    port: /dev/ttyUSB2
+    port: /dev/ttyUSB1
     data_header: dtm,T,RH,Td
     sampling_interval: 1        # minutes. How often should data be requested from instrument?
     reporting_interval: 60
@@ -167,7 +167,7 @@ hmp110-lab:
     type: Vaisala HMP110
     id: 3     # inlet AE31
     serial_number: U2110085  # inlet AE31
-    port: /dev/ttyUSB2
+    port: /dev/ttyUSB1
     data_header: dtm,T,RH,Td
     sampling_interval: 1        # minutes. How often should data be requested from instrument?
     reporting_interval: 60
