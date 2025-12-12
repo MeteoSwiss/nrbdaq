@@ -202,7 +202,9 @@ class HMP110ASCII:
             self._data = ""
 
         except Exception as err:
-            self.logger.error(f"[{self.name}] {err}")
+            logger = getattr(self, "logger", logging.getLogger(__name__))
+            logger.error(f"[{getattr(self, 'name', 'hmp110')}] {err}", exc_info=True)
+            raise
 
 
     @with_serial

@@ -25,9 +25,25 @@ sftp:
       socks5:             # proxy url (leave empty if no proxy is used)
       port: 1080
 
-/dev/ttyUSB2:
+/dev/ttyUSB0:
+    protocol: RS232     # don't change!
+    baudrate: 9600
+    bytesize: 8
+    stopbits: 1
+    parity: N
+    timeout: 1
+
+/dev/ttyUSB1:
     protocol: RS485     # don't change!
     baudrate: 19200
+    bytesize: 8
+    stopbits: 1
+    parity: N
+    timeout: 1
+
+/dev/ttyUSB2:
+    protocol: RS232     # don't change!
+    baudrate: 9600
     bytesize: 8
     stopbits: 1
     parity: N
@@ -54,7 +70,7 @@ Aurora3000:
 # NB: [sampling_interval] minutes
 # NB: [reporting_interval] minutes
 # NB: specify data, staging, archive relative to root
-  serial_port: /dev/ttyUSB1
+  serial_port: /dev/ttyUSB2
   serial_baudrate: 19200
   serial_timeout: 1
   sampling_interval: 1
@@ -158,10 +174,10 @@ hmp110-ae31:
     data_header: dtm,T,RH,Td
     sampling_interval: 1        # minutes. How often should data be requested from instrument?
     reporting_interval: 60
-    data_path: hmp110-ae33
-    staging_path: hmp110-ae33
+    data_path: hmp110-ae31
+    staging_path: hmp110-ae31
     staging_zip: True
-    remote_path: hmp110-ae33
+    remote_path: hmp110-ae31
 
 hmp110-lab:
     type: Vaisala HMP110
@@ -171,10 +187,10 @@ hmp110-lab:
     data_header: dtm,T,RH,Td
     sampling_interval: 1        # minutes. How often should data be requested from instrument?
     reporting_interval: 60
-    data_path: hmp110-ae33
-    staging_path: hmp110-ae33
+    data_path: hmp110-lab
+    staging_path: hmp110-lab
     staging_zip: True
-    remote_path: hmp110-ae33
+    remote_path: hmp110-lab
 
 # future
 # [dxs]
