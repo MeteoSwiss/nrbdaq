@@ -1,7 +1,7 @@
 import os
 from nrbdaq.utils.utils import (load_config, setup_logging)
 
-config_file = "dist/mkndaq.yml"
+config_file = "nrbdaq.yml"
 
 def main():
     # load configuation

@@ -4,7 +4,7 @@ from nrbdaq.instr.thermo import Thermo49i
 from nrbdaq.utils.utils import load_config, setup_logging
 
 def main():
-    config = load_config(config_file='nrbdaq.yaml')
+    config = load_config(config_file='nrbdaq.yml')
     tei49i = Thermo49i(config=config)
 
     # setup logging
