@@ -76,3 +76,10 @@ $ lsusb
     - Wavelength 3 Shtr Count ca 1.7M
 - AE31 flow controlled by get red-y set to 3 lnpm
     -
+
+- Fidas
+    - The Fidas is connected to the DAQ via LAN cable and uses UPD for data transfer. This needs to be configured in the Fidas "Expert User". Presumably due to a bug in the Fidas s/w, it is cumbersome to set the IP address persistently. Follow these exact steps, and then you should succeed:
+    1. Open the current promo.ini file, and set the IP to the IP of the DAQ machine (!). Save the file.
+    2. Enter the "Expert User" > Interfaces. Switch to UDP mode, then set the IP to the IP to the IP of the DAQ machine (!). Leave the entry field with <Enter> and by navigating to some other field.
+    3. Power off the Fidas using the power switch in the back (!), not using the "shutdown" button in the software.
+    4. Switch it back on to verify in the "Expert User" > Interfaces that the IP setting haa persisted.
