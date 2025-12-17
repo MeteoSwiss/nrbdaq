@@ -13,13 +13,14 @@ def load_config(config_file: str) -> dict:
     :return: ConfigParser object with the loaded configuration.
     """
     extension = Path(config_file).expanduser().suffix.lower()
-    if extension == 'yaml' or extension == 'yml':
+    if extension in ('.yaml', '.yml'):
         with open(config_file, 'r') as fh:
             config = yaml.safe_load(fh)
+        if not isinstance(config, dict):
+            raise ValueError(f"Config must be a dict at top level, got {type(config)!r} in {config_file}")
         return config
-    else:
-        print("Extension of config file not recognized!)")
-        return dict()
+
+    raise ValueError("Extension of config file not recognized!)")
 
 
 def setup_logging(file: str, level_console:int=20, level_file:int=40) -> logging.Logger:

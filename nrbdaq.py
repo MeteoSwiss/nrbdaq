@@ -17,7 +17,9 @@ from nrbdaq.utils.utils import (load_config, seconds_to_next_n_minutes,
 def main():
     # load configuation
     config = load_config(config_file='nrbdaq.yml')
-
+    if not config:
+        raise RuntimeError("Config loaded empty; check path and YAML syntax.")
+    
     # setup logging
     logfile = Path(config['root']).expanduser() / config['logging']['file']
     logger = setup_logging(file=str(logfile))
