@@ -71,7 +71,7 @@ def main():
                                             interval=fidas.reporting_interval)
 
         # setup AE31 data acquisition and data transfer
-        if config.get('ae31'):
+        if config.get('AE31'):
             ae31 = AE31(config=config)
             ae31.setup_schedules()
             
@@ -170,7 +170,7 @@ def main():
                                             interval=download_interval)
 
         # setup Thermo 49i data acquisition and data transfer
-        if config.get('thermo49i', None):
+        if config.get('49i', None):
             thermo49i = Thermo49i(config=config)
             thermo49i.setup_schedules()
             if s3fsc:
@@ -188,7 +188,7 @@ def main():
                                             interval=thermo49i.reporting_interval)
 
         # setup Aurora3000
-        if config.get('aurora3000', None):
+        if config.get('Aurora3000', None):
             neph = Aurora3000(config=config)
             neph.setup_schedules()
             logger.info(f"get_instrument_id: {neph.get_instrument_id()}")
