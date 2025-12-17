@@ -1,5 +1,5 @@
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import schedule
 
@@ -56,7 +56,6 @@ def main():
             fidas = FIDAS(config=config)
             fidas.connect_udp()
             fidas.setup_schedules()
-            remote_path = Path(sftp.remote_path).as_posix() / fidas.remote_path
             if s3fsc:
                 s3fsc.setup_transfer_schedules(
                     local_path=str(fidas.staging_path),
@@ -66,6 +65,7 @@ def main():
                     remove_on_success=False,
                 )
             if sftp:
+                remote_path = (PurePosixPath(sftp.remote_path) / fidas.remote_path).as_posix()
                 sftp.setup_transfer_schedules(local_path=fidas.staging_path,
                                             remote_path=remote_path,
                                             interval=fidas.reporting_interval)
@@ -74,7 +74,6 @@ def main():
         if config.get('ae31'):
             ae31 = AE31(config=config)
             ae31.setup_schedules()
-            remote_path = Path(sftp.remote_path).as_posix() / ae31.remote_path
             
             if s3fsc:
                 s3fsc.setup_transfer_schedules(
@@ -85,6 +84,7 @@ def main():
                     remove_on_success=False,
                 )
             if sftp:
+                remote_path = (PurePosixPath(sftp.remote_path) / ae31.remote_path).as_posix()
                 sftp.setup_transfer_schedules(local_path=ae31.staging_path,
                                             remote_path=remote_path,
                                             interval=ae31.reporting_interval)
@@ -94,7 +94,6 @@ def main():
             from nrbdaq.instr.vaisala import HMP110ASCII
             hmp110_inlet = HMP110ASCII(name='hmp110-inlet', config=config)
             hmp110_inlet.setup_schedules()
-            remote_path = Path(sftp.remote_path).as_posix() / hmp110_inlet.remote_path
             if s3fsc:
                 s3fsc.setup_transfer_schedules(
                     local_path=str(hmp110_inlet.staging_path),
@@ -104,6 +103,7 @@ def main():
                     remove_on_success=False,
                 )
             if sftp:
+                remote_path = (PurePosixPath(sftp.remote_path) / hmp110_inlet.remote_path).as_posix()
                 sftp.setup_transfer_schedules(local_path=hmp110_inlet.staging_path,
                                             remote_path=remote_path,
                                             interval=hmp110_inlet.reporting_interval)
@@ -112,7 +112,6 @@ def main():
             from nrbdaq.instr.vaisala import HMP110ASCII
             hmp110_ae31 = HMP110ASCII(name='hmp110-ae31', config=config)
             hmp110_ae31.setup_schedules()
-            remote_path = Path(sftp.remote_path).as_posix() / hmp110_ae31.remote_path
             if s3fsc:
                 s3fsc.setup_transfer_schedules(
                     local_path=str(hmp110_ae31.staging_path),
@@ -122,6 +121,7 @@ def main():
                     remove_on_success=False,
                 )
             if sftp:
+                remote_path = (PurePosixPath(sftp.remote_path) / hmp110_ae31.remote_path).as_posix()
                 sftp.setup_transfer_schedules(local_path=hmp110_ae31.staging_path,
                                             remote_path=remote_path,
                                             interval=hmp110_ae31.reporting_interval)
@@ -130,7 +130,6 @@ def main():
             from nrbdaq.instr.vaisala import HMP110ASCII
             hmp110_lab = HMP110ASCII(name='hmp110-lab', config=config)
             hmp110_lab.setup_schedules()
-            remote_path = Path(sftp.remote_path).as_posix() / hmp110_lab.remote_path
             if s3fsc:
                 s3fsc.setup_transfer_schedules(
                     local_path=str(hmp110_lab.staging_path),
@@ -140,6 +139,7 @@ def main():
                     remove_on_success=False,
                 )
             if sftp:
+                remote_path = (PurePosixPath(sftp.remote_path) / hmp110_lab.remote_path).as_posix()
                 sftp.setup_transfer_schedules(local_path=hmp110_lab.staging_path,
                                             remote_path=remote_path,
                                             interval=hmp110_lab.reporting_interval)
@@ -148,7 +148,6 @@ def main():
         if config.get('AVO', None):
             data_path = Path(config['root']).expanduser() / config['data'] / config['AVO']['data_path']
             staging_path = Path(config['root']).expanduser() / config['staging'] / config['AVO']['staging_path']
-            remote_path = Path(sftp.remote_path).as_posix() / config['AVO']['remote_path']
             download_interval = config['AVO']['download_interval']
             hours = [f"{download_interval*n:02}:00" for n in range(23) if download_interval*n <= 23]
             for hr in hours:
@@ -165,6 +164,7 @@ def main():
                     remove_on_success=False,
                 )
             if sftp:
+                remote_path = (PurePosixPath(sftp.remote_path) / config['AVO']['remote_path']).as_posix()
                 sftp.setup_transfer_schedules(local_path=staging_path,
                                             remote_path=remote_path,
                                             interval=download_interval)
@@ -173,7 +173,6 @@ def main():
         if config.get('thermo49i', None):
             thermo49i = Thermo49i(config=config)
             thermo49i.setup_schedules()
-            remote_path = Path(sftp.remote_path).as_posix() / thermo49i.remote_path
             if s3fsc:
                 s3fsc.setup_transfer_schedules(
                     local_path=str(thermo49i.staging_path),
@@ -183,6 +182,7 @@ def main():
                     remove_on_success=False,
                 )
             if sftp:
+                remote_path = (PurePosixPath(sftp.remote_path) / thermo49i.remote_path).as_posix()
                 sftp.setup_transfer_schedules(local_path=thermo49i.staging_path,
                                             remote_path=remote_path,
                                             interval=thermo49i.reporting_interval)
@@ -192,7 +192,6 @@ def main():
             neph = Aurora3000(config=config)
             neph.setup_schedules()
             logger.info(f"get_instrument_id: {neph.get_instrument_id()}")
-            remote_path = Path(sftp.remote_path).as_posix() / neph.remote_path
             if s3fsc:
                 s3fsc.setup_transfer_schedules(
                     local_path=str(neph.staging_path),
@@ -202,6 +201,7 @@ def main():
                     remove_on_success=False,
                 )
             if sftp:    
+                remote_path = (PurePosixPath(sftp.remote_path) / neph.remote_path).as_posix()
                 sftp.setup_transfer_schedules(local_path=neph.staging_path,
                                             remote_path=remote_path,
                                             interval=neph.reporting_interval)
