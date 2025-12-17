@@ -1,42 +1,25 @@
-import configparser
 import logging
 import os
 import time
-
-import paho.mqtt.client as mqtt
+from pathlib import Path
 import yaml
 
 
-class MQTTHandler(logging.Handler):
-    def __init__(self, broker: str='localhost', port: int=1883, topic: str='logs'):
-        self.client = mqtt.Client()
-        self.client.connect(broker, port, 60)
-        self.topic = topic
-
-    def emit(self, record):
-        log_entry = self.format(record)
-        self.client.publish(self.topic, log_entry)
-
-
-def load_config(config_file: str) -> configparser.ConfigParser:
+def load_config(config_file: str) -> dict:
     """
     Load configuration from config file.
 
     :param config_file: Path to the configuration file.
     :return: ConfigParser object with the loaded configuration.
     """
-    extension = os.path.basename(config_file).split(".")[1].lower()
-    if extension == "ini":
-        config = configparser.ConfigParser()
-        config.read(config_file)
-        return config
-    elif extension == 'yaml' or extension == 'yml':
+    extension = Path(config_file).expanduser().suffix.lower()
+    if extension == 'yaml' or extension == 'yml':
         with open(config_file, 'r') as fh:
             config = yaml.safe_load(fh)
         return config
     else:
         print("Extension of config file not recognized!)")
-        return configparser.ConfigParser()
+        return dict()
 
 
 def setup_logging(file: str, level_console:int=20, level_file:int=40) -> logging.Logger:
