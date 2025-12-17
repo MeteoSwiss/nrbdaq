@@ -54,7 +54,7 @@ class AE31:
             header = f"{header},_950,sens_zero_950,sens_beam_950,ref_zero_950,ref_beam_950,att_950\n"
 
             self.header = header
-            self.id = config['AE31']['id']
+            self.id = config['AE31'].get('id', 'unknown')
 
             self.data_path = os.path.join(root, config['data'], config['AE31']['data_path'])
             os.makedirs(self.data_path, exist_ok=True)
@@ -108,7 +108,7 @@ class AE31:
         try:
             with serial.Serial(self._serial_port, 9600, 8, 'N', 1, int(self._serial_timeout)) as ser:
                 self._dtm = datetime.now().isoformat(timespec='seconds')
-                _ = f"{self._dtm},{self.id},{ser.readline().decode('ascii').strip()}\n"
+                _ = f"{self._dtm},{self.id}, {ser.readline().decode('ascii').strip()}\n"
                 self._data = f"{self._data}{_}"
                 self.logger.info(f"AE31, {_[:60]} [...]")
             return
