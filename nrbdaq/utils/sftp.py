@@ -11,7 +11,7 @@ import re
 
 import paramiko
 import schedule
-from pathlib import Path, PosixPath, WindowsPath
+from pathlib import Path, PurePath
 
 
 class SFTPClient:
@@ -314,16 +314,14 @@ class SFTPClient:
             str: Normalized path string using forward slashes.
         """
         try:
-            if isinstance(path, (PosixPath, WindowsPath)):
-                path = str(path)
-            elif not isinstance(path, str):
-                raise TypeError(f"Unsupported path type: {type(path)}")
-
-            return path.replace('\\', '/')
+            if path is None:
+                return ""
+            if isinstance(path, (str, PurePath, os.PathLike)):
+                return Path(os.fspath(path)).as_posix()
+            raise TypeError(f"Unsupported path type: {type(path)}")
         except Exception as err:
             self.logger.error(f"[normalize_path] {err}")
-            return str()
-
+            return ""
 
     def transfer_files(self, local_path: str=str(), remote_path: str=str(), remove_on_success: bool=True) -> None:
         """Transfer (move) all files from local_path and sub-folders to remote_path.
