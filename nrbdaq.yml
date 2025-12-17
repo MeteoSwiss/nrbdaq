@@ -56,6 +56,7 @@ AE31:
 # NB: [sampling_interval] minutes
 # NB: [reporting_interval] minutes
 # NB: specify data, staging, archive relative to root
+  id: 944:0810
   serial_port: /dev/ttyUSB0
   serial_timeout: 270
   sampling_interval: 5
