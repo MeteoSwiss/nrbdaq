@@ -41,13 +41,13 @@ sftp:
     parity: N
     timeout: 1
 
-/dev/ttyUSB2:
-    protocol: RS232     # don't change!
-    baudrate: 9600
-    bytesize: 8
-    stopbits: 1
-    parity: N
-    timeout: 1
+# /dev/ttyUSB2:
+#     protocol: RS232     # don't change!
+#     baudrate: 19200
+#     bytesize: 8
+#     stopbits: 1
+#     parity: N
+#     timeout: 1
 
 
 AE31:
