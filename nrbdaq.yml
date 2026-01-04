@@ -15,6 +15,14 @@ data: data
 # staging area for transfer, relative to root
 staging: staging
 
+s3:
+    endpoint_url: 'https://service.meteoswiss.ch/'
+    aws_s3_bucket_name: 'ch.meteoswiss.gawkenya'
+    aws_region: 'eu-central-1'
+    aws_access_key_id: 'gawkenya_native'
+    aws_secret_access_key: ~/.aws/minio-devt-secret-key
+    default_prefix: nrb
+
 sftp:
 # NB: specify local_source relative to root
   host: sftp.meteoswiss.ch
@@ -25,13 +33,13 @@ sftp:
       socks5:             # proxy url (leave empty if no proxy is used)
       port: 1080
 
-/dev/ttyUSB0:
-    protocol: RS232     # don't change!
-    baudrate: 9600
-    bytesize: 8
-    stopbits: 1
-    parity: N
-    timeout: 1
+# /dev/ttyUSB0:
+#     protocol: RS232     # don't change!
+#     baudrate: 9600
+#     bytesize: 8
+#     stopbits: 1
+#     parity: N
+#     timeout: 1
 
 /dev/ttyUSB1:
     protocol: RS485     # don't change!
@@ -43,7 +51,7 @@ sftp:
 
 # /dev/ttyUSB2:
 #     protocol: RS232     # don't change!
-#     baudrate: 19200
+#     baudrate: 9600
 #     bytesize: 8
 #     stopbits: 1
 #     parity: N
@@ -57,7 +65,7 @@ AE31:
 # NB: [reporting_interval] minutes
 # NB: specify data, staging, archive relative to root
   id: 944:0810
-  serial_port: /dev/ttyUSB0
+  serial_port: /dev/ttyUSB2
   serial_timeout: 270
   sampling_interval: 5
   reporting_interval: 60
@@ -71,7 +79,7 @@ Aurora3000:
 # NB: [sampling_interval] minutes
 # NB: [reporting_interval] minutes
 # NB: specify data, staging, archive relative to root
-  serial_port: /dev/ttyUSB2
+  serial_port: /dev/ttyUSB0
   serial_baudrate: 19200
   serial_timeout: 1
   sampling_interval: 1
