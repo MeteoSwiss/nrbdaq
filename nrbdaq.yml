@@ -16,7 +16,7 @@ data: data
 staging: staging
 
 s3:
-    endpoint_url: 'https://servicedevt.meteoswiss.ch/'
+    endpoint_url: 'https://service.meteoswiss.ch/'
     aws_s3_bucket_name: 'ch.meteoswiss.gawkenya'
     aws_region: 'eu-central-1'
     aws_access_key_id: 'gawkenya_native'
