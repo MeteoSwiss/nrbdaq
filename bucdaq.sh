@@ -2,7 +2,7 @@
 
 # Set necessary environment variables
 export PATH="/usr/local/bin:/usr/bin:/bin"
-export PYTHONPATH="/usr/lib/python312.zip:/usr/lib/python3.12:/usr/lib/python3.12/lib-dynload:/usr/local/lib/python3.12/dist-packages:/usr/lib/python3/dist-packages:/usr/lib/python3.12/dist-packages"
+export PYTHONPATH="/usr/lib/python313.zip:/usr/lib/python3.13:/usr/lib/python3.13/lib-dynload:/usr/local/lib/python3.13/dist-packages:/usr/lib/python3/dist-packages:/usr/lib/python3.13/dist-packages"
 
 # Ensure the named pipe exists or create it
 #PIPE="/tmp/bucdaq"

@@ -15,6 +15,14 @@ data: data
 # staging area for transfer, relative to root
 staging: staging
 
+s3:
+    endpoint_url: 'https://servicedevt.meteoswiss.ch/'
+    aws_s3_bucket_name: 'ch.meteoswiss.gawkenya'
+    aws_region: 'eu-central-1'
+    aws_access_key_id: 'gawkenya_native'
+    aws_secret_access_key: ~/.aws/minio-devt-secret-key
+    default_prefix: nrb
+
 sftp:
 # NB: specify local_source relative to root
   host: sftp.meteoswiss.ch
@@ -49,7 +57,7 @@ AVO:
   id: 49
   serial_number: 49I-B3NAA-CM09350107
   socket:
-    host: 192.168.100.49
+    host: 192.168.100.13
     port: 9880
     timeout: 5
     sleep: 0.1
@@ -84,9 +92,3 @@ AVO:
   data_path: 49i
   staging_path: 49i
   remote_path: 49i
-  # archive: archive/49i
-
-# future
-# [dxs]
-# host = https://servicedevt.meteoswiss.ch/dxs/api/v1/fileupload
-# key = ~/.ssh/dxs_key.txt
