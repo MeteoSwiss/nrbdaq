@@ -1,11 +1,14 @@
-import schedule
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
+import schedule
+
 from nrbdaq.instr.thermo import Thermo49i
+from nrbdaq.utils.s3fsc import S3FSC
 from nrbdaq.utils.sftp import SFTPClient
-from nrbdaq.utils.utils import load_config, seconds_to_next_n_minutes, setup_logging
+from nrbdaq.utils.utils import (load_config, seconds_to_next_n_minutes,
+                                setup_logging)
 
 
 def main():
@@ -18,13 +21,44 @@ def main():
     logger = setup_logging(file=str(logfile))
     logger.info("== Start BUCDAQ =============", extra={"to_logfile": True})
 
-    # setup sftp client
-    sftp = SFTPClient(config=config)
-    logger.debug(f"sftp.remote_path: {sftp.remote_path}")
+    # decide on file transfer mechanism
+    s3fsc = None
+    sftp = None
+
+    # Prefer S3 when config contains an 's3' section
+    if config.get("s3"):
+        # You can control these via mkndaq.yml's s3.* or override here if needed
+        s3fsc = S3FSC(
+            config=config,
+            use_proxies=bool(config["s3"].get("use_proxies", True)),
+            addressing_style=config["s3"].get("addressing_style", "path"),
+            verify=config["s3"].get("verify", True),
+            default_prefix=config["s3"].get("default_prefix", ""),
+        )
+    if SFTPClient and config.get("sftp"):
+        # Optional fallback if S3 is not configured
+        sftp = SFTPClient(config=config)
+    else:
+        raise RuntimeError("Neither S3 nor SFTP is configured in mkndaq.yml")
 
     # setup Thermo 49i data acquisition and data transfer
-    thermo49i = Thermo49i(config=config)
-    thermo49i.setup_schedules()
+    if config.get('49i', None):
+        thermo49i = Thermo49i(config=config)
+        thermo49i.setup_schedules()
+        if s3fsc:
+            s3fsc.setup_transfer_schedules(
+                local_path=str(thermo49i.staging_path),
+                key_prefix=thermo49i.remote_path,
+                interval=thermo49i.reporting_interval,
+                delay_transfer=3,
+                remove_on_success=False,
+            )
+        if sftp:
+            remote_path = (PurePosixPath(sftp.remote_path) / thermo49i.remote_path).as_posix()
+            sftp.setup_transfer_schedules(local_path=thermo49i.staging_path,
+                                        remote_path=remote_path,
+                                        interval=thermo49i.reporting_interval)
+
 
     # remote paths are POSIX-like; keep them as strings for the SFTP layer
     remote_path = f"{sftp.remote_path.rstrip('/')}/{thermo49i.remote_path.lstrip('/')}"
