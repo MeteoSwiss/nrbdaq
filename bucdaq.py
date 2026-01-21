@@ -36,11 +36,11 @@ def main():
             verify=config["s3"].get("verify", True),
             default_prefix=config["s3"].get("default_prefix", ""),
         )
-    if SFTPClient and config.get("sftp"):
+    elif config.get("sftp"):
         # Optional fallback if S3 is not configured
         sftp = SFTPClient(config=config)
     else:
-        raise RuntimeError(f"Neither S3 nor SFTP is configured in {config_file}!")
+        raise RuntimeError("Neither S3 nor SFTP is configured in %s!", config_file)
 
     # setup Thermo 49i data acquisition and data transfer
     if config.get('49i', None):
