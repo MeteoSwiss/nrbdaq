@@ -9,3 +9,4 @@ sockslib
 paho-mqtt
 numpy
 boto3
+python-dateutil
