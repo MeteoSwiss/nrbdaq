@@ -8,3 +8,4 @@ schedule
 sockslib
 paho-mqtt
 numpy
+boto3
