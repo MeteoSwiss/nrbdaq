@@ -88,36 +88,54 @@ def load_config(
 def setup_logging(file: str, level_console: int = 20, level_file: int = 40) -> logging.Logger:
     """Setup the main logging device.
 
+    - Console: level_console and above.
+    - File: level_file and above (typically ERROR+), plus INFO lines explicitly
+      marked with `extra={"to_logfile": True}`.
+
     Args:
         file: Full path to log file.
         level_console: Console log level.
-        level_file: File log level.
+        level_file: File log level (default ERROR).
 
     Returns:
         A configured logger.
     """
-    file_path = os.path.dirname(file)
-    os.makedirs(file_path, exist_ok=True)
+    os.makedirs(os.path.dirname(file), exist_ok=True)
 
     main_logger = os.path.basename(file).split(".")[0]
     logger = logging.getLogger(main_logger)
     logger.setLevel(logging.DEBUG)
 
-    fh = logging.FileHandler(file)
-    fh.setLevel(level_file)
+    # Prevent double-logging via root handlers
+    logger.propagate = False
 
-    info_fh = logging.FileHandler(file)
-    info_fh.setLevel(logging.INFO)
-    info_fh.addFilter(lambda record: getattr(record, "to_logfile", False))
-
-    ch = logging.StreamHandler()
-    ch.setLevel(level_console)
+    # Avoid duplicate handlers if setup_logging is called again
+    for h in list(logger.handlers):
+        logger.removeHandler(h)
+        try:
+            h.close()
+        except Exception:
+            pass
 
     formatter = logging.Formatter(
-        "%(asctime)s, %(levelname)s, %(name)s, %(message)s", datefmt="%Y-%m-%dT%H:%M:%S"
+        "%(asctime)s, %(levelname)s, %(name)s, %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S",
     )
+
+    # File handler for errors (and above)
+    fh = logging.FileHandler(file)
+    fh.setLevel(level_file)
     fh.setFormatter(formatter)
+
+    # File handler for selected INFO messages only
+    info_fh = logging.FileHandler(file)
+    info_fh.setLevel(logging.INFO)
     info_fh.setFormatter(formatter)
+    info_fh.addFilter(lambda record: getattr(record, "to_logfile", False))
+
+    # Console handler
+    ch = logging.StreamHandler(stream=sys.stdout)  # or omit stream=... to use stderr
+    ch.setLevel(level_console)
     ch.setFormatter(formatter)
 
     logger.addHandler(fh)
