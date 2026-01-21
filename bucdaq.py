@@ -13,7 +13,8 @@ from nrbdaq.utils.utils import (load_config, seconds_to_next_n_minutes,
 
 def main():
     # load configuration (as_dict=True => Pylance infers dict[str, Any])
-    config: dict[str, Any] = load_config(config_file="bucdaq.yml", as_dict=True)
+    config_file = "bucdaq.yml"
+    config: dict[str, Any] = load_config(config_file=config_file, as_dict=True)
 
     # setup logging
     root = Path(str(config["root"])).expanduser()
@@ -39,7 +40,7 @@ def main():
         # Optional fallback if S3 is not configured
         sftp = SFTPClient(config=config)
     else:
-        raise RuntimeError("Neither S3 nor SFTP is configured in mkndaq.yml")
+        raise RuntimeError(f"Neither S3 nor SFTP is configured in {config_file}!")
 
     # setup Thermo 49i data acquisition and data transfer
     if config.get('49i', None):
