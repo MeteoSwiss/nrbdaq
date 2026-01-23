@@ -23,6 +23,13 @@ s3:
   aws_secret_access_key: ~/.aws/minio-devt-secret-key
   default_prefix: buc
 
+ftp:
+# NB: specify local_source relative to root
+  host: 41.89.116.106
+  usr: ftpuser
+  pwd: .secrets/ftp_buc_password
+  remote_path: './uploads/buc'
+
 # sftp:
 # # NB: specify local_source relative to root
 #   host: sftp.meteoswiss.ch

@@ -6,7 +6,7 @@ import schedule
 
 from nrbdaq.instr.thermo import Thermo49i
 from nrbdaq.utils.s3fsc import S3FSC
-from nrbdaq.utils.sftp import SFTPClient
+from nrbdaq.utils.sftp import FTPClient
 from nrbdaq.utils.utils import (load_config, seconds_to_next_n_minutes,
                                 setup_logging)
 
@@ -24,7 +24,7 @@ def main():
 
     # decide on file transfer mechanism
     s3fsc = None
-    sftp = None
+    ftp = None
 
     # Prefer S3 when config contains an 's3' section
     if config.get("s3"):
@@ -36,11 +36,11 @@ def main():
             verify=config["s3"].get("verify", True),
             default_prefix=config["s3"].get("default_prefix", ""),
         )
-    elif config.get("sftp"):
+    elif config.get("ftp"):
         # Optional fallback if S3 is not configured
-        sftp = SFTPClient(config=config)
+        ftp = FTPClient(config=config)
     else:
-        raise RuntimeError("Neither S3 nor SFTP is configured in %s!", config_file)
+        raise RuntimeError("Neither S3 nor ftp is configured in %s!", config_file)
 
     # setup Thermo 49i data acquisition and data transfer
     if config.get('49i', None):
@@ -54,15 +54,15 @@ def main():
                 delay_transfer=3,
                 remove_on_success=False,
             )
-        if sftp:
-            # remote_path = (PurePosixPath(sftp.remote_path) / thermo49i.remote_path).as_posix()
-            # sftp.setup_transfer_schedules(local_path=thermo49i.staging_path,
+        if ftp:
+            # remote_path = (PurePosixPath(ftp.remote_path) / thermo49i.remote_path).as_posix()
+            # ftp.setup_transfer_schedules(local_path=thermo49i.staging_path,
             #                             remote_path=remote_path,
             #                             interval=thermo49i.reporting_interval)
 
-            # remote paths are POSIX-like; keep them as strings for the SFTP layer
-            remote_path = f"{sftp.remote_path.rstrip('/')}/{thermo49i.remote_path.lstrip('/')}"
-            sftp.setup_transfer_schedules(
+            # remote paths are POSIX-like; keep them as strings for the ftp layer
+            remote_path = f"{ftp.remote_path.rstrip('/')}/{thermo49i.remote_path.lstrip('/')}"
+            ftp.setup_transfer_schedules(
                 local_path=thermo49i.staging_path,
                 remote_path=remote_path,
                 interval=thermo49i.reporting_interval,
