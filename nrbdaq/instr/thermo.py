@@ -242,17 +242,17 @@ class Thermo49i:
         try:
             cmd = f"set date {time.strftime('%m-%d-%y')}"
             if self._serial_com:
-                dte = self.serial_comm(cmd)
+                dte = self.serial_comm(cmd, tidy=False)
             else:
-                dte = self.tcpip_comm(cmd)
-            self.logger.info(f"{self._name}, Date set to: {dte}")
+                dte = self.tcpip_comm(cmd, tidy=False)
+            self.logger.info(f"{self._name}, Date set: {dte}")
 
             cmd = f"set time {time.strftime('%H:%M:%S')}"
             if self._serial_com:
-                tme = self.serial_comm(cmd)
+                tme = self.serial_comm(cmd, tidy=False)
             else:
-                tme = self.tcpip_comm(cmd)
-            self.logger.info(f"{self._name}, Time set to: {tme}")
+                tme = self.tcpip_comm(cmd, tidy=False)
+            self.logger.info(f"{self._name}, Time set: {tme}")
 
         except Exception as err:
             self.logger.error(err)
