@@ -88,6 +88,9 @@ class Thermo49i:
             # get/set instrument configuration
             self.get_config()
             self.set_config()
+            
+            if config[name].get('set_datetime', False):
+                self.set_datetime()
 
         except Exception as err:
             self.logger.error(err)

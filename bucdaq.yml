@@ -93,6 +93,7 @@ AVO:
     - set lrec per 1
     - set lrec format 0
     - set save params
+  set_datetime: true
   get_data: lr00
   sampling_interval: 1
   reporting_interval: 60
