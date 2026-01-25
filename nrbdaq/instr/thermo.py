@@ -4,17 +4,20 @@ Define a class TEI49I facilitating communication with a Thermo TEI49i instrument
 
 @author: joerg.klausen@meteoswiss.ch
 """
-import os
-from datetime import datetime
 import logging
+import os
+import re
 # import shutil
 import socket
-# import re
-# import serial
-import schedule
 import time
 import zipfile
+from datetime import datetime
+
 import colorama
+import schedule
+import serial
+
+_INTLIKE_FLOAT = re.compile(r"^-?\d+\.(0)+$")  # e.g. 51771.000, -12.0
 
 class Thermo49i:
     def __init__(self, config: dict, name: str='49i'):
@@ -45,15 +48,15 @@ class Thermo49i:
             if self._serial_com:
                 # configure serial port
                 port = config[name]['port']
-                # self._serial = serial.Serial(port=port,
-                #                             baudrate=config[port]['baudrate'],
-                #                             bytesize=config[port]['bytesize'],
-                #                             parity=config[port]['parity'],
-                #                             stopbits=config[port]['stopbits'],
-                #                             timeout=config[port]['timeout'])
-                # if self._serial.is_open:
-                #     self._serial.close()
-                # self.logger.info(f"Serial port {port} successfully opened and closed.")
+                self._serial = serial.Serial(port=port,
+                                            baudrate=config[port]['baudrate'],
+                                            bytesize=config[port]['bytesize'],
+                                            parity=config[port]['parity'],
+                                            stopbits=config[port]['stopbits'],
+                                            timeout=config[port]['timeout'])
+                if self._serial.is_open:
+                    self._serial.close()
+                self.logger.info(f"Serial port {port} successfully opened and closed.")
             else:
                 # configure tcp/ip
                 self._sockaddr = (config[name]['socket']['host'],
@@ -284,12 +287,14 @@ class Thermo49i:
         try:
             dtm = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             if self._serial_com:
-                _ = self.serial_comm('lr00')
+                raw = self.serial_comm('lr00')
             else:
-                _ = self.tcpip_comm('lr00')
-            self._data += f"{dtm} {_}\n"
-            self.logger.info(f"{self._name}, {_[:60]}[...]")
+                raw = self.tcpip_comm('lr00')
 
+            raw = self._normalize_lr00_record(raw)
+
+            self._data += f"{dtm} {raw}\n"
+            self.logger.info(f"{self._name}, {raw[:60]}[...]")
             return
 
         except Exception as err:
@@ -454,6 +459,44 @@ class Thermo49i:
         self._save_data()
         self._stage_file()
 
+
+    def _intify_if_integral_float(self, token: str) -> str:
+        """Convert tokens like '51771.000' -> '51771' (only if exactly integral)."""
+        token = token.strip()
+        if _INTLIKE_FLOAT.match(token):
+            return token.split(".", 1)[0]
+        if token.endswith("."):
+            # rare edge case: '123.' -> '123'
+            return token[:-1]
+        return token
+
+
+    def _normalize_lr00_record(self, raw: str) -> str:
+        """
+        Normalize an lr00 record so integer fields are written as integers.
+
+        Assumes lr00 returns tokens matching header columns (excluding pcdate/pctime).
+        Only converts 'cellai' and 'cellbi' when they look like integral floats.
+        """
+        raw = raw.strip()
+        if not raw:
+            return raw
+
+        header_cols = self.header.strip().split()
+        # header includes pcdate + pctime; lr00 payload corresponds to the remaining cols
+        expected_tokens = len(header_cols) - 2
+        tokens = raw.split()
+
+        # If the instrument returns something unexpected, don't mutate it.
+        if len(tokens) != expected_tokens:
+            return raw
+
+        for col in ("cellai", "cellbi"):
+            if col in header_cols:
+                idx = header_cols.index(col) - 2  # index in lr00 token list
+                tokens[idx] = self._intify_if_integral_float(tokens[idx])
+
+        return " ".join(tokens)
 
 if __name__ == "__main__":
     pass
