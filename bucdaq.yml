@@ -28,7 +28,7 @@ sftp:
   host: 41.89.116.106
   usr: ozoneuser
   key: ~/.ssh/id_ed25519
-  remote_path: './incoming/buc'
+  remote_path: './incoming'
 
 # sftp:
 # # NB: specify local_source relative to root
