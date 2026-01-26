@@ -46,14 +46,6 @@ def main():
     if config.get('49i', None):
         thermo49i = Thermo49i(config=config)
         thermo49i.setup_schedules()
-        if s3fsc:
-            s3fsc.setup_transfer_schedules(
-                local_path=str(thermo49i.staging_path),
-                key_prefix=thermo49i.remote_path,
-                interval=thermo49i.reporting_interval,
-                delay_transfer=3,
-                remove_on_success=False,
-            )
         if sftp:
             # remote_path = (PurePosixPath(sftp.remote_path) / thermo49i.remote_path).as_posix()
             # sftp.setup_transfer_schedules(local_path=thermo49i.staging_path,
@@ -66,6 +58,15 @@ def main():
                 local_path=thermo49i.staging_path,
                 remote_path=remote_path,
                 interval=thermo49i.reporting_interval,
+                remove_on_success=False
+            )
+        if s3fsc:
+            s3fsc.setup_transfer_schedules(
+                local_path=str(thermo49i.staging_path),
+                key_prefix=thermo49i.remote_path,
+                interval=thermo49i.reporting_interval,
+                delay_transfer=3,
+                remove_on_success=True,
             )
 
     # list all jobs
