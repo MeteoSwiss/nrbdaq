@@ -101,7 +101,9 @@ class SFTPClient:
             )
 
             # configure local source
-            self.local_path = os.path.join(os.path.expanduser(config["root"]), config["staging"])
+            root = os.path.expanduser(os.fspath(config["root"]))
+            staging = os.fspath(config["staging"])
+            self.local_path = os.path.join(root, staging)
             self.logger.debug(f"__init__: {self.local_path}")
 
             # configure remote destination
@@ -129,16 +131,18 @@ class SFTPClient:
         """Establish list of local files.
 
         Args:
-            local_path (str, optional): Absolute path to directory containing folders and files.
+            local_path (str | os.PathLike, optional): Directory containing folders and files.
+                If empty/None, defaults to the configured local staging root.
 
         Returns:
-            list: absolute paths of local files
+            list: absolute paths of local files (as strings)
         """
-        if local_path is None:
-            local_path = self.local_path
-
         try:
-            files = []
+            if not local_path:
+                local_path = self.local_path
+            local_path = self.normalize_path(local_path)
+
+            files: list[str] = []
             for root, _, filenames in os.walk(local_path):
                 for file in filenames:
                     files.append(os.path.join(root, file))
@@ -151,7 +155,10 @@ class SFTPClient:
     def remote_item_exists(self, remote_path: str) -> bool:
         """Check on remote server if an item exists. Assume this indicates successful transfer."""
         try:
-            remote_path = remote_path.replace("\\", "/").rstrip("/")
+            remote_path = self.normalize_path(remote_path).rstrip("/")
+            if not remote_path:
+                return False
+
             with paramiko.SSHClient() as ssh:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
@@ -166,7 +173,9 @@ class SFTPClient:
             return False
 
     def list_remote_items(self, remote_path: str = ".") -> list:
+        """List items in a remote directory."""
         try:
+            remote_path = self.normalize_path(remote_path) or "."
             with paramiko.SSHClient() as ssh:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
@@ -179,20 +188,19 @@ class SFTPClient:
 
     def setup_remote_folders(self, local_path: str = str(), remote_path: str = str()) -> None:
         """
-        Determine directory structure under local_path and replicate on remote host.
+        Determine directory structure under local_path and replicate it on the remote host.
+
+        Note:
+            This is best-effort; existing folders or permission issues are logged and skipped.
         """
         try:
-            if local_path is None:
+            if not local_path:
                 local_path = self.local_path
-
-            # sanitize local_path
-            local_path = re.sub(r"(/?\.?\\){1,2}", "/", local_path)
-
-            if remote_path is str():
+            if not remote_path:
                 remote_path = self.remote_path
 
-            # sanitize remote_path
-            remote_path = re.sub(r"(\\){1,2}", "/", remote_path)
+            local_path = self.normalize_path(local_path).rstrip("/")
+            remote_path = self.normalize_path(remote_path).rstrip("/")
 
             self.logger.info(
                 f"setup_remote_folders (local_path: {local_path}, remote_path: {remote_path})"
@@ -202,15 +210,20 @@ class SFTPClient:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
                 with ssh.open_sftp() as sftp:
-                    # determine local directory structure, establish same structure on remote host
                     for root, dirs, files in os.walk(local_path):
-                        root = re.sub(r"(/?\.?\\){1,2}", "/", root).replace(local_path, remote_path)
-                        self.logger.debug(f"root: {root}")
+                        root_norm = self.normalize_path(root).rstrip("/")
+                        rel = root_norm.replace(local_path, "").strip("/")
+                        remote_dir = f"{remote_path}/{rel}".rstrip("/")
+                        if not remote_dir:
+                            remote_dir = remote_path
+
+                        self.logger.debug(f"remote_dir: {remote_dir}")
                         try:
-                            sftp.mkdir(root, mode=16877)
+                            sftp.mkdir(remote_dir, mode=16877)
                         except OSError as err:
-                            self.logger.error(
-                                f"Could not create '{root}', error: {err}. Maybe path exists already?"
+                            # Folder exists already or cannot be created.
+                            self.logger.debug(
+                                f"Could not create '{remote_dir}', error: {err}. Maybe path exists already?"
                             )
                             pass
                     sftp.close()
@@ -221,11 +234,16 @@ class SFTPClient:
     def put_file(self, local_path: str, remote_path: str):
         """Send a file to a remote host using SFTP and SSH."""
         try:
+            local_path = self.normalize_path(local_path)
+            remote_path = self.normalize_path(remote_path)
+
             if os.path.exists(local_path):
-                # remove the file name from remote_path in case it was appended, then add the file name
-                remote_path = os.path.join(os.path.dirname(remote_path), os.path.basename(local_path)).replace(
-                    "\\", "/"
-                )
+                # Remove any filename from remote_path, then append the local filename
+                remote_path = os.path.join(
+                    os.path.dirname(remote_path),
+                    os.path.basename(local_path),
+                ).replace("\\", "/")
+
                 with paramiko.SSHClient() as ssh:
                     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                     ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
@@ -244,7 +262,7 @@ class SFTPClient:
         Remove a file or prune (the last part of remote_path, not iterative) an (empty) directory.
         """
         try:
-            remote_path = remote_path.replace("\\", "/")
+            remote_path = self.normalize_path(remote_path)
             if self.remote_item_exists(remote_path):
                 with paramiko.SSHClient() as ssh:
                     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -274,7 +292,7 @@ class SFTPClient:
     def setup_remote_path(self, remote_path: str) -> str:
         """Create (and navigate to the leaf of) a remote path (SFTP)."""
         try:
-            remote_path = remote_path.replace("\\", "/").replace("./", "")
+            remote_path = self.normalize_path(remote_path).replace("./", "")
             with paramiko.SSHClient() as ssh:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(hostname=self.host, username=self.usr, pkey=self.key)
@@ -376,13 +394,14 @@ class SFTPClient:
             if interval == 10:
                 minutes = [f"{interval*n:02}" for n in range(6) if interval*n < 60]
                 for minute in minutes:
-                    schedule.every(1).hour.at(f"{minute}:10").do(self.transfer_files, local_path, remote_path, remove_on_success)
+                    # schedule expects ':MM' or ':MM:SS' for hourly jobs
+                    schedule.every(1).hour.at(f":{minute}:10").do(self.transfer_files, local_path, remote_path, remove_on_success)
+            elif interval == 1440:
+                schedule.every(1).day.at("00:00:10").do(self.transfer_files, local_path, remote_path, remove_on_success)
             elif (interval % 60) == 0:
                 hrs = [f"{n:02}:00:10" for n in range(0, 24, interval // 60)]
                 for hr in hrs:
                     schedule.every(1).day.at(hr).do(self.transfer_files, local_path, remote_path, remove_on_success)
-            elif interval == 1440:
-                schedule.every(1).day.at("00:00:10").do(self.transfer_files, local_path, remote_path, remove_on_success)
             else:
                 raise ValueError("'interval' must be 10 minutes or a multiple of 60 minutes and a maximum of 1440 minutes.")
 
@@ -432,7 +451,9 @@ class FTPClient:
             self.password = self._read_password(pwd_path)
 
             # local source root (mirrors SFTPClient behavior)
-            self.local_path = os.path.join(os.path.expanduser(config["root"]), config["staging"])
+            root = os.path.expanduser(os.fspath(config["root"]))
+            staging = os.fspath(config["staging"])
+            self.local_path = os.path.join(root, staging)
 
             # remote destination root
             self.remote_path = ftp_cfg["remote_path"]
@@ -502,6 +523,7 @@ class FTPClient:
 
         # Absolute path: try to start from '/'
         parts = [p for p in remote_dir.split("/") if p and p != "."]
+
         if remote_dir.startswith("/"):
             try:
                 ftp.cwd("/")
@@ -614,13 +636,14 @@ class FTPClient:
             if interval == 10:
                 minutes = [f"{interval*n:02}" for n in range(6) if interval*n < 60]
                 for minute in minutes:
-                    schedule.every(1).hour.at(f"{minute}:10").do(self.transfer_files, local_path, remote_path, remove_on_success)
+                    # schedule expects ':MM' or ':MM:SS' for hourly jobs
+                    schedule.every(1).hour.at(f":{minute}:10").do(self.transfer_files, local_path, remote_path, remove_on_success)
+            elif interval == 1440:
+                schedule.every(1).day.at("00:00:10").do(self.transfer_files, local_path, remote_path, remove_on_success)
             elif (interval % 60) == 0:
                 hrs = [f"{n:02}:00:10" for n in range(0, 24, interval // 60)]
                 for hr in hrs:
                     schedule.every(1).day.at(hr).do(self.transfer_files, local_path, remote_path, remove_on_success)
-            elif interval == 1440:
-                schedule.every(1).day.at("00:00:10").do(self.transfer_files, local_path, remote_path, remove_on_success)
             else:
                 raise ValueError("'interval' must be 10 minutes or a multiple of 60 minutes and a maximum of 1440 minutes.")
 
