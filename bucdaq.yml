@@ -23,12 +23,12 @@ s3:
   aws_secret_access_key: ~/.aws/minio-devt-secret-key
   default_prefix: buc
 
-sftp:
-# NB: specify local_source relative to root
-  host: 41.89.116.106
-  usr: ozoneuser
-  key: ~/.ssh/id_ed25519
-  remote_path: './incoming'
+# sftp:
+# # NB: specify local_source relative to root
+#   host: 41.89.116.106
+#   usr: ozoneuser
+#   key: ~/.ssh/id_ed25519
+#   remote_path: './incoming'
 
 # sftp:
 # # NB: specify local_source relative to root
