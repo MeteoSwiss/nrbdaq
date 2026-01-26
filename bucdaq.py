@@ -47,19 +47,20 @@ def main():
         thermo49i = Thermo49i(config=config)
         thermo49i.setup_schedules()
         if sftp:
-            # remote_path = (PurePosixPath(sftp.remote_path) / thermo49i.remote_path).as_posix()
-            # sftp.setup_transfer_schedules(local_path=thermo49i.staging_path,
-            #                             remote_path=remote_path,
-            #                             interval=thermo49i.reporting_interval)
+            remote_path = (PurePosixPath(sftp.remote_path) / thermo49i.remote_path).as_posix()
+            sftp.setup_transfer_schedules(local_path=thermo49i.staging_path,
+                                        remote_path=remote_path,
+                                        interval=thermo49i.reporting_interval,
+                                        remove_on_success=False)
 
             # remote paths are POSIX-like; keep them as strings for the sftp layer
-            remote_path = f"{sftp.remote_path.rstrip('/')}/{thermo49i.remote_path.lstrip('/')}"
-            sftp.setup_transfer_schedules(
-                local_path=thermo49i.staging_path,
-                remote_path=remote_path,
-                interval=thermo49i.reporting_interval,
-                remove_on_success=False
-            )
+            # remote_path = f"{sftp.remote_path.rstrip('/')}/{thermo49i.remote_path.lstrip('/')}"
+            # sftp.setup_transfer_schedules(
+            #     local_path=thermo49i.staging_path,
+            #     remote_path=remote_path,
+            #     interval=thermo49i.reporting_interval,
+            #     remove_on_success=False
+            # )
         if s3fsc:
             s3fsc.setup_transfer_schedules(
                 local_path=str(thermo49i.staging_path),
