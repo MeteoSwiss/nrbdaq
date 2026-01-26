@@ -26,7 +26,7 @@ def main():
     s3fsc = None
     sftp = None
 
-    # Prefer S3 when config contains an 's3' section
+    # setup s3 and sftp transfer clients
     if config.get("s3"):
         # You can control these via mkndaq.yml's s3.* or override here if needed
         s3fsc = S3FSC(
@@ -36,7 +36,7 @@ def main():
             verify=config["s3"].get("verify", True),
             default_prefix=config["s3"].get("default_prefix", ""),
         )
-    elif config.get("sftp"):
+    if config.get("sftp"):
         # Optional fallback if S3 is not configured
         sftp = SFTPClient(config=config)
     else:
