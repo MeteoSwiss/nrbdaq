@@ -36,9 +36,9 @@ def main():
             verify=config["s3"].get("verify", True),
             default_prefix=config["s3"].get("default_prefix", ""),
         )
-    if config.get("sftp"):
-        # Optional fallback if S3 is not configured
-        sftp = SFTPClient(config=config)
+    # if config.get("sftp"):
+    #     # Optional fallback if S3 is not configured
+    #     sftp = SFTPClient(config=config)
     else:
         raise RuntimeError("Neither S3 nor sftp is configured in %s!", config_file)
 
