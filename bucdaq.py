@@ -66,7 +66,7 @@ def main():
                 local_path=str(thermo49i.staging_path),
                 key_prefix=thermo49i.remote_path,
                 interval=thermo49i.reporting_interval,
-                delay_transfer=3,
+                delay_transfer=15,
                 remove_on_success=True,
             )
 
