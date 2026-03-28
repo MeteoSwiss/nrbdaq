@@ -24,21 +24,22 @@ def main():
     logger.debug(f"sftp.remote_path: {sftp.remote_path}")
 
     # setup FIDAS
-    fidas = FIDAS(config=config)
-    fidas.connect_udp()
-    fidas.setup_schedules()
-    remote_path = os.path.join(sftp.remote_path, fidas.remote_path)
-    sftp.setup_transfer_schedules(local_path=fidas.staging_path,
-                                  remote_path=remote_path,
-                                  interval=fidas.reporting_interval)
+    if config.get('fidas', None):
+        fidas = FIDAS(config=config)
+        fidas.connect_udp()
+        fidas.setup_schedules()
+        remote_path = os.path.join(sftp.remote_path, fidas.remote_path)
+        sftp.setup_transfer_schedules(local_path=fidas.staging_path,
+                                    remote_path=remote_path,
+                                    interval=fidas.reporting_interval)
 
     # setup AE31 data acquisition and data transfer
-    ae31 = AE31(config=config)
-    ae31.setup_schedules()
-    remote_path = os.path.join(sftp.remote_path, ae31.remote_path)
-    sftp.setup_transfer_schedules(local_path=ae31.staging_path,
-                                  remote_path=remote_path,
-                                  interval=ae31.reporting_interval)
+    if config.get('AE31', None):
+        ae31.setup_schedules()
+        remote_path = os.path.join(sftp.remote_path, ae31.remote_path)
+        sftp.setup_transfer_schedules(local_path=ae31.staging_path,
+                                    remote_path=remote_path,
+                                    interval=ae31.reporting_interval)
 
     # setup HMP110 data acquisition and data transfer
     if config.get('hmp110-inlet', None):
@@ -84,12 +85,13 @@ def main():
                                   interval=download_interval)
 
     # setup Thermo 49i data acquisition and data transfer
-    thermo49i = Thermo49i(config=config)
-    thermo49i.setup_schedules()
-    remote_path = os.path.join(sftp.remote_path, thermo49i.remote_path)
-    sftp.setup_transfer_schedules(local_path=thermo49i.staging_path,
-                                  remote_path=remote_path,
-                                  interval=thermo49i.reporting_interval)
+    if config.get('49i', None):
+        thermo49i = Thermo49i(config=config)
+        thermo49i.setup_schedules()
+        remote_path = os.path.join(sftp.remote_path, thermo49i.remote_path)
+        sftp.setup_transfer_schedules(local_path=thermo49i.staging_path,
+                                    remote_path=remote_path,
+                                    interval=thermo49i.reporting_interval)
 
     # setup Aurora3000
     neph = Aurora3000(config=config)
