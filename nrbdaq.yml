@@ -16,12 +16,12 @@ data: data
 staging: staging
 
 s3:
-    endpoint_url: 'https://servicedevt.meteoswiss.ch/'
+    endpoint_url: 'https://service.meteoswiss.ch/'
     aws_s3_bucket_name: 'ch.meteoswiss.gawkenya'
     aws_region: 'eu-central-1'
     aws_access_key_id: 'gawkenya_native'
     aws_secret_access_key: ~/.aws/minio-devt-secret-key
-    default_prefix: nrb
+    default_prefix: nrb/incoming
 
 sftp:
 # NB: specify local_source relative to root
@@ -101,66 +101,66 @@ AVO:
   remote_path: avo
   download_interval: 360
 
-49i:
-# NB: [set avg time 3] must be compatible with lrec per
-# NB: [set lrec per 1] must correspond to sampling_interval
-# NB: [set lrec format 0] ASCII no labels
-# NB: [serial_timeout] seconds
-# NB: [sampling_interval] minutes. How often should data be requested from instrument?
-# NB: [reporting_interval] minutes. How often should files be saved, staged and transfered?
-# NB: specify data, staging, archive relative to root
-  id: 49
-  serial_number: 49I-B1NAA-12103910681
-  socket:
-    host: 192.168.2.14
-    port: 9880
-    timeout: 5
-    sleep: 0.1
-  get_config:
-    - date
-    - time
-    - mode
-    - gas unit
-    - temp comp
-    - pres comp
-    - range
-    - format
-    - avg time
-    - lrec per
-    - lrec format
-    - o3 coef
-    - o3 bkg
-  set_config:
-    - set mode remote
-    - set gas unit ppb
-    - set temp comp on
-    - set pres comp on
-    - set range 1
-    - set format 00
-    - set avg time 1
-    - set lrec per 1
-    - set lrec format 0
-    - set save params
-  get_data: lr00
-  sampling_interval: 1
-  reporting_interval: 60
-  data_path: 49i
-  staging_path: 49i
-  remote_path: 49i
-  # archive: archive/49i
+# 49i:
+# # NB: [set avg time 3] must be compatible with lrec per
+# # NB: [set lrec per 1] must correspond to sampling_interval
+# # NB: [set lrec format 0] ASCII no labels
+# # NB: [serial_timeout] seconds
+# # NB: [sampling_interval] minutes. How often should data be requested from instrument?
+# # NB: [reporting_interval] minutes. How often should files be saved, staged and transfered?
+# # NB: specify data, staging, archive relative to root
+#   id: 49
+#   serial_number: 49I-B1NAA-12103910681
+#   socket:
+#     host: 192.168.2.14
+#     port: 9880
+#     timeout: 5
+#     sleep: 0.1
+#   get_config:
+#     - date
+#     - time
+#     - mode
+#     - gas unit
+#     - temp comp
+#     - pres comp
+#     - range
+#     - format
+#     - avg time
+#     - lrec per
+#     - lrec format
+#     - o3 coef
+#     - o3 bkg
+#   set_config:
+#     - set mode remote
+#     - set gas unit ppb
+#     - set temp comp on
+#     - set pres comp on
+#     - set range 1
+#     - set format 00
+#     - set avg time 1
+#     - set lrec per 1
+#     - set lrec format 0
+#     - set save params
+#   get_data: lr00
+#   sampling_interval: 1
+#   reporting_interval: 60
+#   data_path: 49i
+#   staging_path: 49i
+#   remote_path: 49i
+#   # archive: archive/49i
 
-fidas:
-  socket:
-    host: 192.168.2.223   # Important: read README.md
-    port: 56790
-    buffer_size: 65535
-    timeout: 0      # no longer used
-    sleep: 0.005
-  fetch_interval_seconds: 5
-  reporting_interval: 60
-  data_path: fidas
-  staging_path: fidas
-  remote_path: fidas
+# fidas:
+#   socket:
+#     host: 192.168.2.223   # Important: read README.md
+#     port: 56790
+#     buffer_size: 65535
+#     timeout: 0      # no longer used
+#     sleep: 0.005
+#   fetch_interval_seconds: 5
+#   reporting_interval: 60
+#   data_path: fidas
+#   staging_path: fidas
+#   remote_path: fidas
 
 hmp110-inlet:
     type: Vaisala HMP110
