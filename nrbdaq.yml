@@ -27,7 +27,7 @@ sftp:
 # NB: specify local_source relative to root
   host: sftp.meteoswiss.ch
   usr: gaw_kenya
-  key: ~/.ssh/private-open-ssh-4096-mkn.ppk
+  key: ~/.ssh/nrb-ed25519-20260508
   remote_path: './nrb'
   proxy:
       socks5:             # proxy url (leave empty if no proxy is used)
