@@ -59,35 +59,35 @@ sftp:
 #     timeout: 1
 
 
-AE31:
+# AE31:
 # NB: Configure AE31 to use the default settings (9600, 8, 1, N).
 # NB: [serial_timeout] seconds
 # NB: [sampling_interval] minutes
 # NB: [reporting_interval] minutes
 # NB: specify data, staging, archive relative to root
-  id: 944:0810
-  serial_port: /dev/ttyUSB2
-  serial_timeout: 270
-  sampling_interval: 5
-  reporting_interval: 60
-  data_path: ae31
-  staging_path: ae31
-  remote_path: ae31
-  # archive: archive/ae31
+  # id: 944:0810
+  # serial_port: /dev/ttyUSB2
+  # serial_timeout: 270
+  # sampling_interval: 5
+  # reporting_interval: 60
+  # data_path: ae31
+  # staging_path: ae31
+  # remote_path: ae31
+  # # archive: archive/ae31
 
-Aurora3000:
-# NB: [serial_timeout] seconds
-# NB: [sampling_interval] minutes
-# NB: [reporting_interval] minutes
-# NB: specify data, staging, archive relative to root
-  serial_port: /dev/ttyUSB0
-  serial_baudrate: 19200
-  serial_timeout: 1
-  sampling_interval: 1
-  reporting_interval: 60
-  data_path: aurora3000
-  staging_path: aurora3000
-  remote_path: aurora3000
+# Aurora3000:
+# # NB: [serial_timeout] seconds
+# # NB: [sampling_interval] minutes
+# # NB: [reporting_interval] minutes
+# # NB: specify data, staging, archive relative to root
+#   serial_port: /dev/ttyUSB0
+#   serial_baudrate: 19200
+#   serial_timeout: 1
+#   sampling_interval: 1
+#   reporting_interval: 60
+#   data_path: aurora3000
+#   staging_path: aurora3000
+#   remote_path: aurora3000
 
 AVO:
 # NB: list deployments of AirVisual Outdoor unit or which data should be downloaded as url_{site}
